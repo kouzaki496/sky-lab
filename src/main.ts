@@ -103,25 +103,40 @@ function updateTransition() {
   const s = easeInOutCubic(t)
 
   if (mode === "world") {
-    // → Unwrap
+    // → Unwrap: パノラマから出てきたら平面を表示
     camera.position.set(0, 0, 0.1 + 7.9 * s)
     sphere.scale.setScalar(1 - 0.96 * s)
     sphere.position.set(-3 * s, 0, 0)
-    plane.visible = true
-    planeMaterial.opacity = s
     plane.position.set(3, 0, 0)
     controls.target.set(0, 0, 0)
+    if (s < 0.35) {
+      plane.visible = false
+      planeMaterial.opacity = 0
+    } else {
+      plane.visible = true
+      planeMaterial.opacity = Math.min(1, (s - 0.35) / 0.45)
+    }
     if (t >= 1) {
       transitioning = false
       setUnwrap()
     }
   } else {
-    // → World
+    // → World: 平面を短くフェードアウトさせて余韻をつける
     camera.position.set(0, 0, 0.1 + 7.9 * (1 - s))
-    sphere.scale.setScalar(0.04 + 0.96 * (1 - s))
+    sphere.scale.setScalar(0.04 + 0.96 * s)
     sphere.position.set(-3 * (1 - s), 0, 0)
-    planeMaterial.opacity = 1 - s
     controls.target.set(0, 0, 0)
+    // 少し時間差をつけてから平面をフェードアウト
+    if (s < 0.02) {
+      plane.visible = true
+      planeMaterial.opacity = 1
+    } else if (s < 0.3) {
+      plane.visible = true
+      planeMaterial.opacity = Math.max(0, 1 - (s - 0.12) / 0.2)
+    } else {
+      plane.visible = false
+      planeMaterial.opacity = 0
+    }
     if (t >= 1) {
       transitioning = false
       setWorld()
