@@ -1,4 +1,5 @@
 import * as THREE from "three"
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js"
 
 // シーン
 const scene = new THREE.Scene()
@@ -18,14 +19,20 @@ const renderer = new THREE.WebGLRenderer({ antialias: true })
 renderer.setSize(window.innerWidth, window.innerHeight)
 document.body.appendChild(renderer.domElement)
 
-// 球体ジオメトリ
-const geometry = new THREE.SphereGeometry(1, 64, 64)
+// カメラ操作
+const controls = new OrbitControls(camera, renderer.domElement)
+controls.enableZoom = false
+controls.enablePan = false
 
-// マテリアル（少し立体感を出す）
-const material = new THREE.MeshStandardMaterial({
-  color: 0x4a90e2,
-  roughness: 0.3,
-  metalness: 0.1
+// 球体ジオメトリ
+const geometry = new THREE.SphereGeometry(50, 64, 64)
+
+// テクスチャ読込
+const texture = new THREE.TextureLoader().load("/panorama2.jpg")
+
+const material = new THREE.MeshBasicMaterial({
+  map: texture,
+  side: THREE.BackSide
 })
 
 const sphere = new THREE.Mesh(geometry, material)
@@ -39,23 +46,18 @@ scene.add(light)
 const ambient = new THREE.AmbientLight(0xffffff, 0.4)
 scene.add(ambient)
 
+// アニメーション
+function animate() {
+  requestAnimationFrame(animate)
+  controls.update()
+  renderer.render(scene, camera)
+}
+
+animate()
+
 // リサイズ対応
 window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight
   camera.updateProjectionMatrix()
   renderer.setSize(window.innerWidth, window.innerHeight)
 })
-
-// アニメーション
-function animate() {
-  requestAnimationFrame(animate)
-  sphere.rotation.y += 0.005
-  renderer.render(scene, camera)
-}
-
-// 回転が分かるようにワイヤーフレームを重ねる
-const wireframe = new THREE.WireframeGeometry(geometry)
-const line = new THREE.LineSegments(wireframe, new THREE.LineBasicMaterial({ color: 0x000000 }))
-sphere.add(line)
-
-animate()
