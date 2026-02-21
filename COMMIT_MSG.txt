@@ -1,7 +1,0 @@
-refactor: srcを階層化しモード状態をstateで一括管理
-
-- config / scene / transition / uvMarker / goreAnimation に分割・ディレクトリ化
-- state モジュールで mode, goreView, uvLineVisible 等を集約
-- 360°では展開ボタンのみ表示、モード切替時に他モードのサブ状態をオフに
-- 経線展開時はUV対応線を非表示、UV対応線押下時はゴアを折りたたんでから表示
-- docs/state.md に状態一覧と参照関係を追記

@@ -1,6 +1,6 @@
 import * as THREE from "three"
 import type { SceneContext } from "../config"
-import { SIZE_CONFIG, UNWRAP_FRONT_DIRECTION } from "../config"
+import { SIZE_CONFIG, UNWRAP_FRONT_DIRECTION, CENTER_X } from "../config"
 import {
   getMode,
   setMode,
@@ -58,11 +58,11 @@ function setWorld(t: TransitionContext): void {
   ctx.sphere.visible = true
   ctx.planeMaterial.opacity = 0
   ctx.sphere.scale.setScalar(1)
-  ctx.sphere.position.set(0, 0, 0)
+  ctx.sphere.position.set(CENTER_X, 0, 0)
   ctx.sphere.rotation.set(0, 0, 0)
-  ctx.camera.position.set(0, 0, 0.1)
-  ctx.controls.target.set(0, 0, 0)
-  ctx.camera.lookAt(0, 0, 0)
+  ctx.camera.position.set(CENTER_X, 0, 0.1)
+  ctx.controls.target.set(CENTER_X, 0, 0)
+  ctx.camera.lookAt(CENTER_X, 0, 0)
   const ctrl = ctx.controls as unknown as { _quat: THREE.Quaternion; _spherical: THREE.Spherical }
   if (ctrl._quat && ctrl._spherical) {
     const offset = new THREE.Vector3().subVectors(ctx.camera.position, ctx.controls.target)
@@ -82,7 +82,7 @@ export function isGoreView(_ctx?: SceneContext): boolean {
 export function setGoreView(ctx: SceneContext, show: boolean): void {
   setGoreViewState(show)
   ctx.goreMesh.visible = false
-  ctx.goreMesh.position.set(0, U.planePositionY, 0)
+  ctx.goreMesh.position.set(CENTER_X, U.planePositionY, 0)
   ctx.plane.visible = true
   ctx.planeGrid.visible = true
   if (show) {
@@ -107,7 +107,7 @@ function setUnwrap(t: TransitionContext): void {
   ctx.planeMaterial.opacity = 1
   ctx.sphere.visible = true
   ctx.sphere.scale.setScalar(U.sphereScale)
-  ctx.sphere.position.set(0, U.spherePositionY, 0)
+  ctx.sphere.position.set(CENTER_X, U.spherePositionY, 0)
   const { sphere, camera } = ctx
   const viewDir = camera.position.clone().multiplyScalar(-1).normalize()
   const invQuat = sphere.quaternion.clone().invert()
@@ -120,10 +120,10 @@ function setUnwrap(t: TransitionContext): void {
     sphere.quaternion.premultiply(flip)
   }
   sphere.rotation.setFromQuaternion(sphere.quaternion)
-  ctx.plane.position.set(0, U.planePositionY, 0)
-  ctx.camera.position.set(0, 0, U.cameraZ)
-  ctx.controls.target.set(0, 0, 0)
-  ctx.camera.lookAt(0, 0, 0)
+  ctx.plane.position.set(CENTER_X, U.planePositionY, 0)
+  ctx.camera.position.set(CENTER_X, 0, U.cameraZ)
+  ctx.controls.target.set(CENTER_X, 0, 0)
+  ctx.camera.lookAt(CENTER_X, 0, 0)
   onModeChange()
 }
 
@@ -136,11 +136,11 @@ export function updateTransition(t: TransitionContext): void {
   const s = easeInOutCubic(timeT)
 
   if (getMode() === "world") {
-    camera.position.set(0, 0, 0.1 + (U.cameraZ - 0.1) * s)
+    camera.position.set(CENTER_X, 0, 0.1 + (U.cameraZ - 0.1) * s)
     sphere.scale.setScalar(1 - (1 - U.sphereScale) * s)
-    sphere.position.set(0, U.spherePositionY * s, 0)
-    plane.position.set(0, U.planePositionY, 0)
-    controls.target.set(0, 0, 0)
+    sphere.position.set(CENTER_X, U.spherePositionY * s, 0)
+    plane.position.set(CENTER_X, U.planePositionY, 0)
+    controls.target.set(CENTER_X, 0, 0)
     if (s < 0.35) {
       plane.visible = false
       planeGrid.visible = false
@@ -157,11 +157,11 @@ export function updateTransition(t: TransitionContext): void {
       setUnwrap(t)
     }
   } else {
-    camera.position.set(0, 0, 0.1 + (U.cameraZ - 0.1) * (1 - s))
+    camera.position.set(CENTER_X, 0, 0.1 + (U.cameraZ - 0.1) * (1 - s))
     sphere.scale.setScalar(U.sphereScale + (1 - U.sphereScale) * s)
-    sphere.position.set(0, U.spherePositionY * (1 - s), 0)
+    sphere.position.set(CENTER_X, U.spherePositionY * (1 - s), 0)
     sphere.rotation.set(sphere.rotation.x * (1 - s), sphere.rotation.y * (1 - s), 0)
-    controls.target.set(0, 0, 0)
+    controls.target.set(CENTER_X, 0, 0)
     if (s < 0.02) {
       plane.visible = true
       planeGrid.visible = true

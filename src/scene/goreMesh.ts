@@ -64,16 +64,19 @@ function rotateAroundAxis(vx: number, vy: number, vz: number, ax: number, ay: nu
   ]
 }
 
+/** メッシュに scale 1.4 をかけるので、球半径は (シーン球の見た目) / 1.4 にして展開時も大きさが変わらないようにする */
+const GORE_MORPH_SCALE = 1.4
+
 /** 球→経線強調→赤道はがれ（円状）→平面の 3 段階 morph。 */
 export function createSphereToGoreMorphMesh(
   texture: THREE.Texture,
   numGores: number,
   latSteps: number
 ): THREE.Mesh {
-  const totalW = SIZE_CONFIG.planeWidth / 1.4
-  const totalH = SIZE_CONFIG.planeHeight / 1.4
+  const totalW = SIZE_CONFIG.planeWidth / GORE_MORPH_SCALE
+  const totalH = SIZE_CONFIG.planeHeight / GORE_MORPH_SCALE
   const goreW = totalW / numGores
-  const r = 2
+  const r = (SIZE_CONFIG.sphereRadius * SIZE_CONFIG.unwrap.sphereScale) / GORE_MORPH_SCALE
   const positions: number[] = []
   const positionsSlit: number[] = []
   const positionsEquatorRing: number[] = []
@@ -158,7 +161,7 @@ export function createSphereToGoreMorphMesh(
     side: THREE.DoubleSide
   })
   const mesh = new THREE.Mesh(geo, mat)
-  mesh.scale.setScalar(1.4)
+  mesh.scale.setScalar(GORE_MORPH_SCALE)
   mesh.frustumCulled = false
   return mesh
 }

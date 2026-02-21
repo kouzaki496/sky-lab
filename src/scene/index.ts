@@ -1,6 +1,6 @@
 import * as THREE from "three"
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js"
-import { SIZE_CONFIG, SPHERE_GRID_ROTATION_Y } from "../config"
+import { SIZE_CONFIG, SPHERE_GRID_ROTATION_Y, CENTER_X } from "../config"
 import type { SceneContext } from "../config"
 import {
   createSphereMeridiansFromGeometry,
@@ -23,7 +23,7 @@ export function createScene(): SceneContext {
   scene.background = new THREE.Color(0xffffff)
 
   const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000)
-  camera.position.set(0, 0, 0.1)
+  camera.position.set(CENTER_X, 0, 0.1)
 
   const renderer = new THREE.WebGLRenderer({ antialias: true })
   renderer.setSize(window.innerWidth, window.innerHeight)
@@ -61,7 +61,7 @@ export function createScene(): SceneContext {
   const planeGeometry = new THREE.PlaneGeometry(SIZE_CONFIG.planeWidth, SIZE_CONFIG.planeHeight, SEGMENTS, Math.round(SEGMENTS / 2))
   const planeMaterial = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true, opacity: 0 })
   const plane = new THREE.Mesh(planeGeometry, planeMaterial)
-  plane.position.set(0, SIZE_CONFIG.unwrap.planePositionY, 0)
+  plane.position.set(CENTER_X, SIZE_CONFIG.unwrap.planePositionY, 0)
   plane.visible = false
   scene.add(plane)
 
@@ -73,7 +73,7 @@ export function createScene(): SceneContext {
   plane.add(planeEquator)
 
   const goreMesh = createGoreUnwrapMesh(texture, SPHERE_GRID_LONGITUDE, 24)
-  goreMesh.position.set(0, SIZE_CONFIG.unwrap.planePositionY, 0)
+  goreMesh.position.set(CENTER_X, SIZE_CONFIG.unwrap.planePositionY, 0)
   goreMesh.visible = false
   scene.add(goreMesh)
 
@@ -83,7 +83,7 @@ export function createScene(): SceneContext {
   scene.add(goreMorphMesh)
 
   const unfoldMesh = createUnfoldMesh(texture)
-  unfoldMesh.position.set(0, SIZE_CONFIG.unwrap.planePositionY, 0)
+  unfoldMesh.position.set(CENTER_X, SIZE_CONFIG.unwrap.planePositionY, 0)
   unfoldMesh.visible = false
   unfoldMesh.morphTargetInfluences = [1]
   scene.add(unfoldMesh)

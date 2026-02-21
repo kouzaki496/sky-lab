@@ -1,5 +1,5 @@
 import type { SceneContext } from "../config"
-import { SIZE_CONFIG } from "../config"
+import { SIZE_CONFIG, CENTER_X } from "../config"
 import { getMode, isGoreView, setGoreView } from "../transition"
 
 const U = SIZE_CONFIG.unwrap
@@ -29,7 +29,7 @@ export function startGoreUnfoldAnimation(ctx: SceneContext): void {
   if (getMode() !== "unwrap" || isGoreView(ctx) || goreUnfoldStart !== null || goreFoldStart !== null) return
   const { goreMorphMesh, sphere } = ctx
   goreMorphMesh.visible = true
-  goreMorphMesh.position.set(0, U.spherePositionY, 0)
+  goreMorphMesh.position.set(CENTER_X, U.spherePositionY, 0)
   goreMorphMesh.morphTargetInfluences![0] = 0
   goreMorphMesh.morphTargetInfluences![1] = 0
   goreMorphMesh.morphTargetInfluences![2] = 0
@@ -76,7 +76,7 @@ export function startGoreFoldAnimation(ctx: SceneContext): void {
   if (getMode() !== "unwrap" || !isGoreView(ctx) || goreUnfoldStart !== null || goreFoldStart !== null) return
   const { goreMorphMesh, sphere } = ctx
   goreMorphMesh.visible = true
-  goreMorphMesh.position.set(0, U.spherePositionY, 0)
+  goreMorphMesh.position.set(CENTER_X, U.spherePositionY, 0)
   goreMorphMesh.morphTargetInfluences![0] = 1
   goreMorphMesh.morphTargetInfluences![1] = 1
   goreMorphMesh.morphTargetInfluences![2] = 1
