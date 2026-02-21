@@ -10,12 +10,12 @@ export const SPHERE_GRID_ROTATION_Y = -Math.PI / 2
 
 export const SIZE_CONFIG = {
   sphereRadius: 70,
-  planeWidth: 8,
-  planeHeight: 4,
+  planeWidth: 6,
+  planeHeight: 3,
   unwrap: {
     sphereScale: 0.04,
-    spherePositionX: -4,
-    planePositionX: 4,
+    spherePositionY: 1.5,
+    planePositionY: -3,
     cameraZ: 8
   }
 }
@@ -167,7 +167,7 @@ export function createScene(): SceneContext {
   controls.enableZoom = false
   controls.rotateSpeed = -0.25
 
-  const texture = new THREE.TextureLoader().load("/panorama2.jpg")
+  const texture = new THREE.TextureLoader().load("/panorama.jpg")
   texture.colorSpace = THREE.SRGBColorSpace
 
   // --- 球体 ---
@@ -195,7 +195,7 @@ export function createScene(): SceneContext {
   const planeGeometry = new THREE.PlaneGeometry(SIZE_CONFIG.planeWidth, SIZE_CONFIG.planeHeight, SEGMENTS, Math.round(SEGMENTS / 2))
   const planeMaterial = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true, opacity: 0 })
   const plane = new THREE.Mesh(planeGeometry, planeMaterial)
-  plane.position.set(SIZE_CONFIG.unwrap.planePositionX, 0, 0)
+  plane.position.set(0, SIZE_CONFIG.unwrap.planePositionY, 0)
   plane.visible = false
   scene.add(plane)
 
