@@ -9,7 +9,6 @@ import {
   initTransition,
   type TransitionContext
 } from "./transition"
-
 const ctx = createScene()
 const { scene, camera, renderer, controls, canvas, sphere } = ctx
 
