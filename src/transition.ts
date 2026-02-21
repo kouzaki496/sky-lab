@@ -61,18 +61,20 @@ function setWorld(t: TransitionContext): void {
 }
 
 export function isGoreView(ctx: SceneContext): boolean {
-  return ctx.goreMesh.visible
+  return ctx.goreMesh.visible || ctx.goreMorphMesh.visible
 }
 
 export function setGoreView(ctx: SceneContext, show: boolean): void {
-  ctx.goreMesh.visible = show
+  ctx.goreMesh.visible = false
   ctx.goreMesh.position.set(0, U.planePositionY, 0)
-  ctx.plane.visible = !show
-  ctx.planeGrid.visible = !show
+  // 下の平面は常に表示（ゴア表示時も隠さない）
+  ctx.plane.visible = true
+  ctx.planeGrid.visible = true
   if (show) {
     ctx.sphere.visible = false
   } else {
     ctx.sphere.visible = true
+    ctx.goreMorphMesh.visible = false
   }
 }
 

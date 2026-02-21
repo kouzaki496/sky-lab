@@ -235,11 +235,10 @@ canvas.addEventListener("pointerleave", () => {
   uvPointDrag = false
 })
 
-const GORE_STAGE1_MS = 400
-const GORE_STAGE2_MS = 800
-const GORE_STAGE3_MS = 800
-const GORE_STAGE4_MS = 900
-const GORE_UNFOLD_DURATION = GORE_STAGE1_MS + GORE_STAGE2_MS + GORE_STAGE3_MS + GORE_STAGE4_MS
+const GORE_SLIT_MS = 700
+const GORE_PEEL_MS = 800
+const GORE_FLAT_MS = 900
+const GORE_UNFOLD_DURATION = GORE_SLIT_MS + GORE_PEEL_MS + GORE_FLAT_MS
 
 function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
@@ -262,36 +261,32 @@ function updateGoreUnfoldAnimation(): void {
   if (goreUnfoldStart === null) return
   const elapsed = performance.now() - goreUnfoldStart
   const inf = goreMorphMesh.morphTargetInfluences!
-  if (elapsed < GORE_STAGE1_MS) {
-    inf[0] = 0
-    inf[1] = 0
-    inf[2] = 0
-    goreMorphMesh.position.y = U.spherePositionY
-  } else if (elapsed < GORE_STAGE1_MS + GORE_STAGE2_MS) {
-    const t = (elapsed - GORE_STAGE1_MS) / GORE_STAGE2_MS
+  if (elapsed < GORE_SLIT_MS) {
+    const t = elapsed / GORE_SLIT_MS
     inf[0] = easeInOutCubic(t)
     inf[1] = 0
     inf[2] = 0
     goreMorphMesh.position.y = U.spherePositionY
-  } else if (elapsed < GORE_STAGE1_MS + GORE_STAGE2_MS + GORE_STAGE3_MS) {
+  } else if (elapsed < GORE_SLIT_MS + GORE_PEEL_MS) {
     inf[0] = 1
-    const t = (elapsed - GORE_STAGE1_MS - GORE_STAGE2_MS) / GORE_STAGE3_MS
+    const t = (elapsed - GORE_SLIT_MS) / GORE_PEEL_MS
     inf[1] = easeInOutCubic(t)
     inf[2] = 0
     goreMorphMesh.position.y = U.spherePositionY
   } else if (elapsed < GORE_UNFOLD_DURATION) {
     inf[0] = 1
     inf[1] = 1
-    const t = (elapsed - GORE_STAGE1_MS - GORE_STAGE2_MS - GORE_STAGE3_MS) / GORE_STAGE4_MS
+    const t = (elapsed - GORE_SLIT_MS - GORE_PEEL_MS) / GORE_FLAT_MS
     const s = easeInOutCubic(t)
     inf[2] = s
-    goreMorphMesh.position.y = U.spherePositionY + (U.planePositionY - U.spherePositionY) * s
+    // ゴアは上（球体位置）に留め、下の平面はそのまま表示
+    goreMorphMesh.position.y = U.spherePositionY
   } else {
     goreUnfoldStart = null
-    goreMorphMesh.visible = false
     goreMorphMesh.morphTargetInfluences![0] = 1
     goreMorphMesh.morphTargetInfluences![1] = 1
     goreMorphMesh.morphTargetInfluences![2] = 1
+    // goreMorphMesh は表示のまま（上に広がったゴア）、平面は下に表示されたまま
     setGoreView(ctx, true)
     updateModeButton()
   }

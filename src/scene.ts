@@ -204,8 +204,24 @@ function createGoreUnwrapMesh(texture: THREE.Texture, numGores: number, latSteps
   return new THREE.Mesh(geo, mat)
 }
 
-const GORE_SLIT_GAP = 0.08
-const GORE_SPREAD_ANGLE = (15 * Math.PI) / 180
+const GORE_SLIT_GAP = 0.22
+const GORE_SLIT_PUSH = 0.06
+const GORE_SPREAD_ANGLE = (75 * Math.PI) / 180
+
+/** ベクトル v を原点を通る軸 ax まわりに angle ラジアン回転 */
+function rotateAroundAxis(vx: number, vy: number, vz: number, ax: number, ay: number, az: number, angle: number): [number, number, number] {
+  const c = Math.cos(angle)
+  const s = Math.sin(angle)
+  const dot = ax * vx + ay * vy + az * vz
+  const crossX = ay * vz - az * vy
+  const crossY = az * vx - ax * vz
+  const crossZ = ax * vy - ay * vx
+  return [
+    vx * c + crossX * s + ax * dot * (1 - c),
+    vy * c + crossY * s + ay * dot * (1 - c),
+    vz * c + crossZ * s + az * dot * (1 - c)
+  ]
+}
 
 /** 4段階: 球体 → 経線スリット → 外側に開く → 平面。3つの morphTarget で補間。 */
 function createSphereToGoreMorphMesh(
@@ -227,6 +243,10 @@ function createSphereToGoreMorphMesh(
 
   for (let g = 0; g < numGores; g++) {
     const xOffset = (g - (numGores - 1) / 2) * goreW
+    const phiHinge = (g / numGores) * Math.PI * 2
+    const ax = -Math.cos(phiHinge)
+    const ay = 0
+    const az = Math.sin(phiHinge)
     for (let j = 0; j <= latSteps; j++) {
       const v = j / latSteps
       const theta = v * Math.PI
@@ -242,24 +262,16 @@ function createSphereToGoreMorphMesh(
       const nL = Math.sqrt(xL * xL + yL * yL + zL * zL) || 1
       const nR = Math.sqrt(xR * xR + yR * yR + zR * zR) || 1
       const gap = GORE_SLIT_GAP
-      const sLx = xL - (xL / nL) * gap
-      const sLy = yL - (yL / nL) * gap
-      const sLz = zL - (zL / nL) * gap
-      const sRx = xR + (xR / nR) * gap
-      const sRy = yR + (yR / nR) * gap
-      const sRz = zR + (zR / nR) * gap
+      const push = GORE_SLIT_PUSH
+      const sLx = xL - (xL / nL) * gap + (xL / nL) * push
+      const sLy = yL - (yL / nL) * gap + (yL / nL) * push
+      const sLz = zL - (zL / nL) * gap + (zL / nL) * push
+      const sRx = xR + (xR / nR) * gap + (xR / nR) * push
+      const sRy = yR + (yR / nR) * gap + (yR / nR) * push
+      const sRz = zR + (zR / nR) * gap + (zR / nR) * push
       positionsSlit.push(sLx, sLy, sLz, sRx, sRy, sRz)
-      const angle = (g - (numGores - 1) / 2) * GORE_SPREAD_ANGLE
-      const cosA = Math.cos(angle)
-      const sinA = Math.sin(angle)
-      positionsOpened.push(
-        sLx * cosA - sLz * sinA,
-        sLy,
-        sLx * sinA + sLz * cosA,
-        sRx * cosA - sRz * sinA,
-        sRy,
-        sRx * sinA + sRz * cosA
-      )
+      const [rRx, rRy, rRz] = rotateAroundAxis(sRx, sRy, sRz, ax, ay, az, GORE_SPREAD_ANGLE)
+      positionsOpened.push(sLx, sLy, sLz, rRx, rRy, rRz)
       const t = v * Math.PI
       const halfW = (goreW / 2) * Math.sin(t)
       const yFlat = totalH / 2 - v * totalH
