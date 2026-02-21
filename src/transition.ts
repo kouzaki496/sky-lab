@@ -1,5 +1,5 @@
 import type { SceneContext } from "./scene"
-import { SIZE_CONFIG, SPHERE_GRID_ROTATION_Y } from "./scene"
+import { SIZE_CONFIG, UNWRAP_FRONT_DIRECTION } from "./scene"
 
 const DURATION = 1800
 const U = SIZE_CONFIG.unwrap
@@ -48,6 +48,8 @@ function setWorld(t: TransitionContext): void {
   ctx.sphereEquator.visible = false
   ctx.plane.visible = false
   ctx.planeGrid.visible = false
+  ctx.goreMesh.visible = false
+  ctx.goreMorphMesh.visible = false
   ctx.planeMaterial.opacity = 0
   ctx.sphere.scale.setScalar(1)
   ctx.sphere.position.set(0, 0, 0)
@@ -56,6 +58,22 @@ function setWorld(t: TransitionContext): void {
   ctx.controls.target.set(0, 0, 0)
   ctx.camera.lookAt(0, 0, 0)
   onModeChange()
+}
+
+export function isGoreView(ctx: SceneContext): boolean {
+  return ctx.goreMesh.visible
+}
+
+export function setGoreView(ctx: SceneContext, show: boolean): void {
+  ctx.goreMesh.visible = show
+  ctx.goreMesh.position.set(0, U.planePositionY, 0)
+  ctx.plane.visible = !show
+  ctx.planeGrid.visible = !show
+  if (show) {
+    ctx.sphere.visible = false
+  } else {
+    ctx.sphere.visible = true
+  }
 }
 
 function setUnwrap(t: TransitionContext): void {
@@ -67,7 +85,10 @@ function setUnwrap(t: TransitionContext): void {
   ctx.sphereEquator.visible = true
   ctx.plane.visible = true
   ctx.planeGrid.visible = true
+  ctx.goreMesh.visible = false
+  ctx.goreMorphMesh.visible = false
   ctx.planeMaterial.opacity = 1
+  ctx.sphere.visible = true
   ctx.sphere.scale.setScalar(U.sphereScale)
   ctx.sphere.position.set(0, U.spherePositionY, 0)
   const { sphere, camera } = ctx
@@ -101,10 +122,12 @@ export function updateTransition(t: TransitionContext): void {
     if (s < 0.35) {
       plane.visible = false
       planeGrid.visible = false
+      ctx.goreMesh.visible = false
       planeMaterial.opacity = 0
     } else {
       plane.visible = true
       planeGrid.visible = true
+      ctx.goreMesh.visible = false
       planeMaterial.opacity = Math.min(1, (s - 0.35) / 0.45)
     }
     if (timeT >= 1) {
@@ -120,14 +143,17 @@ export function updateTransition(t: TransitionContext): void {
     if (s < 0.02) {
       plane.visible = true
       planeGrid.visible = true
+      ctx.goreMesh.visible = false
       planeMaterial.opacity = 1
     } else if (s < 0.3) {
       plane.visible = true
       planeGrid.visible = true
+      ctx.goreMesh.visible = false
       planeMaterial.opacity = Math.max(0, 1 - (s - 0.12) / 0.2)
     } else {
       plane.visible = false
       planeGrid.visible = false
+      ctx.goreMesh.visible = false
       planeMaterial.opacity = 0
     }
     if (timeT >= 1) {

@@ -20,6 +20,12 @@ export const SIZE_CONFIG = {
   }
 }
 
+export const UNWRAP_FRONT_DIRECTION = new THREE.Vector3(
+  0,
+  -SIZE_CONFIG.unwrap.spherePositionY,
+  SIZE_CONFIG.unwrap.cameraZ
+).normalize()
+
 export type SceneContext = {
   scene: THREE.Scene
   camera: THREE.PerspectiveCamera
@@ -34,6 +40,9 @@ export type SceneContext = {
   planeGrid: THREE.LineSegments
   planeEquator: THREE.Line
   planeMaterial: THREE.MeshBasicMaterial
+  goreMesh: THREE.Mesh
+  goreMorphMesh: THREE.Mesh
+  unfoldMesh: THREE.Mesh
 }
 
 /**
@@ -152,6 +161,215 @@ function createPlaneEquator(width: number): THREE.Line {
   return new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xcc3333, linewidth: 2 }))
 }
 
+/** 橙の皮（ゴア）型の展開図。各片は上下で尖り中央で幅最大、横に並べる。 */
+function createGoreUnwrapMesh(texture: THREE.Texture, numGores: number, latSteps: number): THREE.Mesh {
+  const totalW = SIZE_CONFIG.planeWidth
+  const totalH = SIZE_CONFIG.planeHeight
+  const goreW = totalW / numGores
+  const positions: number[] = []
+  const uvs: number[] = []
+  const indices: number[] = []
+  const z = 0.001
+
+  for (let g = 0; g < numGores; g++) {
+    const xOffset = (g - (numGores - 1) / 2) * goreW
+    for (let j = 0; j <= latSteps; j++) {
+      const v = j / latSteps
+      const t = v * Math.PI
+      const halfW = (goreW / 2) * Math.sin(t)
+      const y = totalH / 2 - v * totalH
+      positions.push(xOffset - halfW, y, z, xOffset + halfW, y, z)
+      uvs.push(g / numGores, 1 - v, (g + 1) / numGores, 1 - v)
+    }
+  }
+  for (let g = 0; g < numGores; g++) {
+    for (let j = 0; j < latSteps; j++) {
+      const a = (g * (latSteps + 1) + j) * 2
+      const b = a + 1
+      const c = a + 2
+      const d = a + 3
+      indices.push(a, c, b, b, c, d)
+    }
+  }
+
+  const geo = new THREE.BufferGeometry()
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3))
+  geo.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2))
+  geo.setIndex(indices)
+  geo.computeVertexNormals()
+  const mat = new THREE.MeshBasicMaterial({
+    map: texture.clone(),
+    side: THREE.DoubleSide
+  })
+  return new THREE.Mesh(geo, mat)
+}
+
+const GORE_SLIT_GAP = 0.08
+const GORE_SPREAD_ANGLE = (15 * Math.PI) / 180
+
+/** 4段階: 球体 → 経線スリット → 外側に開く → 平面。3つの morphTarget で補間。 */
+function createSphereToGoreMorphMesh(
+  texture: THREE.Texture,
+  numGores: number,
+  latSteps: number
+): THREE.Mesh {
+  const totalW = SIZE_CONFIG.planeWidth / 1.4
+  const totalH = SIZE_CONFIG.planeHeight / 1.4
+  const goreW = totalW / numGores
+  const r = 2
+  const positions: number[] = []
+  const positionsSlit: number[] = []
+  const positionsOpened: number[] = []
+  const positionsFlat: number[] = []
+  const uvs: number[] = []
+  const indices: number[] = []
+  const z = 0.001
+
+  for (let g = 0; g < numGores; g++) {
+    const xOffset = (g - (numGores - 1) / 2) * goreW
+    for (let j = 0; j <= latSteps; j++) {
+      const v = j / latSteps
+      const theta = v * Math.PI
+      const phiL = (g / numGores) * Math.PI * 2
+      const phiR = ((g + 1) / numGores) * Math.PI * 2
+      const xL = -r * Math.sin(theta) * Math.cos(phiL)
+      const yL = r * Math.cos(theta)
+      const zL = r * Math.sin(theta) * Math.sin(phiL)
+      const xR = -r * Math.sin(theta) * Math.cos(phiR)
+      const yR = r * Math.cos(theta)
+      const zR = r * Math.sin(theta) * Math.sin(phiR)
+      positions.push(xL, yL, zL, xR, yR, zR)
+      const nL = Math.sqrt(xL * xL + yL * yL + zL * zL) || 1
+      const nR = Math.sqrt(xR * xR + yR * yR + zR * zR) || 1
+      const gap = GORE_SLIT_GAP
+      const sLx = xL - (xL / nL) * gap
+      const sLy = yL - (yL / nL) * gap
+      const sLz = zL - (zL / nL) * gap
+      const sRx = xR + (xR / nR) * gap
+      const sRy = yR + (yR / nR) * gap
+      const sRz = zR + (zR / nR) * gap
+      positionsSlit.push(sLx, sLy, sLz, sRx, sRy, sRz)
+      const angle = (g - (numGores - 1) / 2) * GORE_SPREAD_ANGLE
+      const cosA = Math.cos(angle)
+      const sinA = Math.sin(angle)
+      positionsOpened.push(
+        sLx * cosA - sLz * sinA,
+        sLy,
+        sLx * sinA + sLz * cosA,
+        sRx * cosA - sRz * sinA,
+        sRy,
+        sRx * sinA + sRz * cosA
+      )
+      const t = v * Math.PI
+      const halfW = (goreW / 2) * Math.sin(t)
+      const yFlat = totalH / 2 - v * totalH
+      positionsFlat.push(xOffset - halfW, yFlat, z, xOffset + halfW, yFlat, z)
+      uvs.push(g / numGores, 1 - v, (g + 1) / numGores, 1 - v)
+    }
+  }
+  for (let g = 0; g < numGores; g++) {
+    for (let j = 0; j < latSteps; j++) {
+      const a = (g * (latSteps + 1) + j) * 2
+      const b = a + 1
+      const c = a + 2
+      const d = a + 3
+      indices.push(a, c, b, b, c, d)
+    }
+  }
+
+  const positionsM1: number[] = []
+  const positionsM2: number[] = []
+  for (let i = 0; i < positions.length; i++) {
+    positionsM1.push(
+      positions[i] + (positionsOpened[i] - positionsSlit[i])
+    )
+    positionsM2.push(
+      positions[i] + (positionsFlat[i] - positionsOpened[i])
+    )
+  }
+  const geo = new THREE.BufferGeometry()
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3))
+  geo.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2))
+  geo.setIndex(indices)
+  geo.setAttribute("morphTarget0", new THREE.Float32BufferAttribute(positionsSlit, 3))
+  geo.setAttribute("morphTarget1", new THREE.Float32BufferAttribute(positionsM1, 3))
+  geo.setAttribute("morphTarget2", new THREE.Float32BufferAttribute(positionsM2, 3))
+  geo.morphAttributes.position = [
+    geo.getAttribute("morphTarget0") as THREE.BufferAttribute,
+    geo.getAttribute("morphTarget1") as THREE.BufferAttribute,
+    geo.getAttribute("morphTarget2") as THREE.BufferAttribute
+  ]
+  geo.computeVertexNormals()
+  const mat = new THREE.MeshBasicMaterial({
+    map: texture.clone(),
+    side: THREE.DoubleSide
+  })
+  const mesh = new THREE.Mesh(geo, mat)
+  mesh.scale.setScalar(1.4)
+  mesh.frustumCulled = false
+  return mesh
+}
+
+const UNFOLD_LON = 12
+const UNFOLD_LAT = 8
+
+/**
+ * 経線に沿って球→平面に開くモーフメッシュ。
+ * 球（1枚の経線で切った形）と矩形が同じトポロジーで、morphTarget で補間。
+ */
+function createUnfoldMesh(texture: THREE.Texture): THREE.Mesh {
+  const W = UNFOLD_LON + 1
+  const H = UNFOLD_LAT + 1
+  const r = 2
+  const flatW = SIZE_CONFIG.planeWidth / 1.4
+  const flatH = SIZE_CONFIG.planeHeight / 1.4
+  const positions: number[] = []
+  const positionsFlat: number[] = []
+  const uvs: number[] = []
+  const indices: number[] = []
+
+  for (let j = 0; j < H; j++) {
+    const theta = (j / UNFOLD_LAT) * Math.PI
+    for (let i = 0; i < W; i++) {
+      const phi = (i / UNFOLD_LON) * Math.PI * 2
+      const x = -r * Math.sin(theta) * Math.cos(phi)
+      const y = r * Math.cos(theta)
+      const z = r * Math.sin(theta) * Math.sin(phi)
+      positions.push(x, y, z)
+      const fx = (i / UNFOLD_LON - 0.5) * flatW
+      const fy = (j / UNFOLD_LAT - 0.5) * flatH
+      positionsFlat.push(fx, fy, 0.001)
+      uvs.push(i / UNFOLD_LON, j / UNFOLD_LAT)
+    }
+  }
+  for (let j = 0; j < UNFOLD_LAT; j++) {
+    for (let i = 0; i < UNFOLD_LON; i++) {
+      const a = j * W + i
+      const b = a + 1
+      const c = a + W
+      const d = c + 1
+      indices.push(a, c, b, b, c, d)
+    }
+  }
+
+  const geo = new THREE.BufferGeometry()
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3))
+  geo.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2))
+  geo.setIndex(indices)
+  geo.setAttribute("morphTarget0", new THREE.Float32BufferAttribute(positionsFlat, 3))
+  geo.morphAttributes.position = [geo.getAttribute("morphTarget0") as THREE.BufferAttribute]
+  geo.computeVertexNormals()
+
+  const mat = new THREE.MeshBasicMaterial({
+    map: texture.clone(),
+    side: THREE.DoubleSide
+  })
+  const mesh = new THREE.Mesh(geo, mat)
+  mesh.scale.setScalar(1.4)
+  mesh.frustumCulled = false
+  return mesh
+}
+
 export function createScene(): SceneContext {
   const scene = new THREE.Scene()
   scene.background = new THREE.Color(0xffffff)
@@ -206,11 +424,28 @@ export function createScene(): SceneContext {
   const planeEquator = createPlaneEquator(SIZE_CONFIG.planeWidth)
   plane.add(planeEquator)
 
+  const goreMesh = createGoreUnwrapMesh(texture, SPHERE_GRID_LONGITUDE, 24)
+  goreMesh.position.set(0, SIZE_CONFIG.unwrap.planePositionY, 0)
+  goreMesh.visible = false
+  scene.add(goreMesh)
+
+  const goreMorphMesh = createSphereToGoreMorphMesh(texture, SPHERE_GRID_LONGITUDE, 24)
+  goreMorphMesh.visible = false
+  goreMorphMesh.morphTargetInfluences = [0, 0, 0]
+  scene.add(goreMorphMesh)
+
+  const unfoldMesh = createUnfoldMesh(texture)
+  unfoldMesh.position.set(0, SIZE_CONFIG.unwrap.planePositionY, 0)
+  unfoldMesh.visible = false
+  unfoldMesh.morphTargetInfluences = [1]
+  scene.add(unfoldMesh)
+
   scene.add(new THREE.AmbientLight(0xffffff, 1.0))
 
   return {
     scene, camera, renderer, controls, canvas: renderer.domElement,
     sphere, sphereWireframe, sphereMeridians, sphereEquator,
-    plane, planeGrid, planeEquator, planeMaterial
+    plane, planeGrid, planeEquator, planeMaterial,
+    goreMesh, goreMorphMesh, unfoldMesh
   }
 }

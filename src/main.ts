@@ -7,10 +7,13 @@ import {
   startToUnwrap,
   updateTransition,
   initTransition,
+  isGoreView,
+  setGoreView,
   type TransitionContext
 } from "./transition"
 const ctx = createScene()
-const { scene, camera, renderer, controls, canvas, sphere, plane } = ctx
+const { scene, camera, renderer, controls, canvas, sphere, plane, goreMorphMesh } = ctx
+const U = SIZE_CONFIG.unwrap
 
 const uvPoint = { u: 0.5, v: 0.5 }
 const raycaster = new THREE.Raycaster()
@@ -156,14 +159,22 @@ function updateUVLine(): void {
 }
 
 function updateModeButton(): void {
+  const m = getMode()
   const btn = document.getElementById("btn-mode")
-  if (!btn) return
-  if (getMode() === "world") {
-    btn.textContent = "展開"
-    btn.setAttribute("aria-label", "展開して球と平面を表示")
-  } else {
-    btn.textContent = "360°"
-    btn.setAttribute("aria-label", "パノラマで見る")
+  if (btn) {
+    if (m === "world") {
+      btn.textContent = "展開"
+      btn.setAttribute("aria-label", "展開して球と平面を表示")
+    } else {
+      btn.textContent = "360°"
+      btn.setAttribute("aria-label", "パノラマで見る")
+    }
+  }
+  const btnUnfold = document.getElementById("btn-unfold")
+  if (btnUnfold) {
+    btnUnfold.style.display = m === "unwrap" ? "" : "none"
+    btnUnfold.textContent = isGoreView(ctx) ? "戻る" : "経線で展開"
+    btnUnfold.setAttribute("aria-label", isGoreView(ctx) ? "球と平面に戻る" : "ゴア型の展開図を表示")
   }
 }
 
@@ -224,9 +235,82 @@ canvas.addEventListener("pointerleave", () => {
   uvPointDrag = false
 })
 
+const GORE_STAGE1_MS = 400
+const GORE_STAGE2_MS = 800
+const GORE_STAGE3_MS = 800
+const GORE_STAGE4_MS = 900
+const GORE_UNFOLD_DURATION = GORE_STAGE1_MS + GORE_STAGE2_MS + GORE_STAGE3_MS + GORE_STAGE4_MS
+
+function easeInOutCubic(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
+}
+let goreUnfoldStart: number | null = null
+
+function startGoreUnfoldAnimation(): void {
+  if (getMode() !== "unwrap" || isGoreView(ctx) || goreUnfoldStart !== null) return
+  goreMorphMesh.visible = true
+  goreMorphMesh.position.set(0, U.spherePositionY, 0)
+  goreMorphMesh.morphTargetInfluences![0] = 0
+  goreMorphMesh.morphTargetInfluences![1] = 0
+  goreMorphMesh.morphTargetInfluences![2] = 0
+  sphere.visible = false
+  ctx.goreMesh.visible = false
+  goreUnfoldStart = performance.now()
+}
+
+function updateGoreUnfoldAnimation(): void {
+  if (goreUnfoldStart === null) return
+  const elapsed = performance.now() - goreUnfoldStart
+  const inf = goreMorphMesh.morphTargetInfluences!
+  if (elapsed < GORE_STAGE1_MS) {
+    inf[0] = 0
+    inf[1] = 0
+    inf[2] = 0
+    goreMorphMesh.position.y = U.spherePositionY
+  } else if (elapsed < GORE_STAGE1_MS + GORE_STAGE2_MS) {
+    const t = (elapsed - GORE_STAGE1_MS) / GORE_STAGE2_MS
+    inf[0] = easeInOutCubic(t)
+    inf[1] = 0
+    inf[2] = 0
+    goreMorphMesh.position.y = U.spherePositionY
+  } else if (elapsed < GORE_STAGE1_MS + GORE_STAGE2_MS + GORE_STAGE3_MS) {
+    inf[0] = 1
+    const t = (elapsed - GORE_STAGE1_MS - GORE_STAGE2_MS) / GORE_STAGE3_MS
+    inf[1] = easeInOutCubic(t)
+    inf[2] = 0
+    goreMorphMesh.position.y = U.spherePositionY
+  } else if (elapsed < GORE_UNFOLD_DURATION) {
+    inf[0] = 1
+    inf[1] = 1
+    const t = (elapsed - GORE_STAGE1_MS - GORE_STAGE2_MS - GORE_STAGE3_MS) / GORE_STAGE4_MS
+    const s = easeInOutCubic(t)
+    inf[2] = s
+    goreMorphMesh.position.y = U.spherePositionY + (U.planePositionY - U.spherePositionY) * s
+  } else {
+    goreUnfoldStart = null
+    goreMorphMesh.visible = false
+    goreMorphMesh.morphTargetInfluences![0] = 1
+    goreMorphMesh.morphTargetInfluences![1] = 1
+    goreMorphMesh.morphTargetInfluences![2] = 1
+    setGoreView(ctx, true)
+    updateModeButton()
+  }
+}
+
+function toggleGoreView(): void {
+  if (getMode() !== "unwrap") return
+  if (isGoreView(ctx)) {
+    setGoreView(ctx, false)
+    updateModeButton()
+  } else {
+    startGoreUnfoldAnimation()
+  }
+}
+
 function animate(): void {
   requestAnimationFrame(animate)
   updateTransition(transitionContext)
+  updateGoreUnfoldAnimation()
   updateUVLine()
   if (controls.enabled) controls.update()
   clampCameraInSphere()
@@ -283,6 +367,8 @@ document.getElementById("btn-uv-line")?.addEventListener("click", () => {
   const btn = document.getElementById("btn-uv-line")
   if (btn) btn.setAttribute("aria-pressed", String(uvLineVisible))
 })
+
+document.getElementById("btn-unfold")?.addEventListener("click", toggleGoreView)
 
 initTransition(transitionContext)
 animate()
