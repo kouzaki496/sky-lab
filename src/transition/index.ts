@@ -1,6 +1,6 @@
 import * as THREE from "three"
-import type { SceneContext } from "./scene"
-import { SIZE_CONFIG, UNWRAP_FRONT_DIRECTION } from "./scene"
+import type { SceneContext } from "../config"
+import { SIZE_CONFIG, UNWRAP_FRONT_DIRECTION } from "../config"
 
 const DURATION = 1800
 const U = SIZE_CONFIG.unwrap
@@ -106,7 +106,7 @@ function setUnwrap(t: TransitionContext): void {
   const invQuat = sphere.quaternion.clone().invert()
   const objDir = viewDir.clone().applyQuaternion(invQuat)
   const front = UNWRAP_FRONT_DIRECTION.clone()
-  sphere.quaternion.setFromUnitVectors(objDir, front)
+  sphere.quaternion.setFromUnitVectors(objDir, front) // 正面は常に固定 (0,0,-1)
   // setFromUnitVectors が上下反転解を選ぶ場合があるので補正
   const sphereUp = new THREE.Vector3(0, 1, 0).applyQuaternion(sphere.quaternion)
   if (sphereUp.y < 0) {
