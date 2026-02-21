@@ -109,12 +109,12 @@ function createSphereGridFromGeometry(
   )
 }
 
-/** 赤道: ジオメトリの中央リング（heightSegments/2）をそのまま取得 */
+/** 赤道 **/
 function createSphereEquatorFromGeometry(geometry: THREE.SphereGeometry): THREE.LineLoop {
   const pos = geometry.getAttribute("position")
   const { widthSegments, heightSegments } = geometry.parameters
   const W = widthSegments + 1
-  const iyEquator = Math.round(heightSegments / 2) // 垂直方向のど真ん中
+  const iyEquator = Math.round(heightSegments / 2)
   const positions: number[] = []
 
   for (let ix = 0; ix <= widthSegments; ix++) {

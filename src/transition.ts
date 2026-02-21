@@ -70,7 +70,13 @@ function setUnwrap(t: TransitionContext): void {
   ctx.planeMaterial.opacity = 1
   ctx.sphere.scale.setScalar(U.sphereScale)
   ctx.sphere.position.set(0, U.spherePositionY, 0)
-  ctx.sphere.rotation.set(0, SPHERE_GRID_ROTATION_Y, 0) // テクスチャ中央を正面に（createScene の初期回転が setWorld で 0 に上書きされるためここで再適用）
+  const { sphere, camera } = ctx
+  const viewDir = camera.position.clone().multiplyScalar(-1).normalize()
+  const invQuat = sphere.quaternion.clone().invert()
+  const objDir = viewDir.clone().applyQuaternion(invQuat)
+  const front = UNWRAP_FRONT_DIRECTION.clone()
+  sphere.quaternion.setFromUnitVectors(objDir, front)
+  sphere.rotation.setFromQuaternion(sphere.quaternion)
   ctx.plane.position.set(0, U.planePositionY, 0)
   ctx.camera.position.set(0, 0, U.cameraZ)
   ctx.controls.target.set(0, 0, 0)
@@ -90,7 +96,6 @@ export function updateTransition(t: TransitionContext): void {
     camera.position.set(0, 0, 0.1 + (U.cameraZ - 0.1) * s)
     sphere.scale.setScalar(1 - (1 - U.sphereScale) * s)
     sphere.position.set(0, U.spherePositionY * s, 0)
-    sphere.rotation.set(0, SPHERE_GRID_ROTATION_Y * s, 0) // 展開中にテクスチャ中央が正面へ向くよう補間
     plane.position.set(0, U.planePositionY, 0)
     controls.target.set(0, 0, 0)
     if (s < 0.35) {
@@ -110,7 +115,7 @@ export function updateTransition(t: TransitionContext): void {
     camera.position.set(0, 0, 0.1 + (U.cameraZ - 0.1) * (1 - s))
     sphere.scale.setScalar(U.sphereScale + (1 - U.sphereScale) * s)
     sphere.position.set(0, U.spherePositionY * (1 - s), 0)
-    sphere.rotation.set(0, SPHERE_GRID_ROTATION_Y * (1 - s), 0) // 360° に戻る際に回転を 0 へ補間
+    sphere.rotation.set(sphere.rotation.x * (1 - s), sphere.rotation.y * (1 - s), 0)
     controls.target.set(0, 0, 0)
     if (s < 0.02) {
       plane.visible = true
