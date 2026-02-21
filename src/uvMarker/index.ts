@@ -10,14 +10,22 @@ const POINTER_RADIUS = MARKER_RADIUS_WORLD
 const SPHERE_MARKER_RADIUS = MARKER_RADIUS_WORLD / SIZE_CONFIG.unwrap.sphereScale
 
 export type GetMode = () => "world" | "unwrap"
+export type GetIsGoreView = () => boolean
+export type GetUvLineVisible = () => boolean
+export type SetUvLineVisible = (v: boolean) => void
 
-export function createUVMarker(ctx: SceneContext, getMode: GetMode) {
+export function createUVMarker(
+  ctx: SceneContext,
+  getMode: GetMode,
+  getIsGoreView: GetIsGoreView | undefined,
+  getUvLineVisible: GetUvLineVisible,
+  setUvLineVisible: SetUvLineVisible
+) {
   const { scene, camera, canvas, sphere, plane } = ctx
   const uvPoint = { u: 0.5, v: 0.5 }
   const raycaster = new THREE.Raycaster()
   const mouse = new THREE.Vector2()
   const planeIntersect = new THREE.Vector3()
-  let uvLineVisible = false
 
   const uvLineGeometry = new THREE.BufferGeometry().setAttribute(
     "position",
@@ -141,7 +149,7 @@ export function createUVMarker(ctx: SceneContext, getMode: GetMode) {
   }
 
   function updateUVLine(drag?: { clientX: number; clientY: number }): void {
-    if (!uvLineVisible || getMode() !== "unwrap") {
+    if (!getUvLineVisible() || getMode() !== "unwrap" || (getIsGoreView?.() ?? false)) {
       uvLine.visible = false
       uvPointerGroup.visible = false
       sphereMarkerGroup.visible = false
@@ -184,9 +192,7 @@ export function createUVMarker(ctx: SceneContext, getMode: GetMode) {
     pickUVOnPlaneResult,
     pickUVOnPlane,
     updateUVLine,
-    getUvLineVisible: () => uvLineVisible,
-    setUvLineVisible: (v: boolean) => {
-      uvLineVisible = v
-    }
+    getUvLineVisible,
+    setUvLineVisible
   }
 }

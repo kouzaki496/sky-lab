@@ -1,6 +1,25 @@
 import * as THREE from "three"
 import type { SceneContext } from "../config"
 import { SIZE_CONFIG, UNWRAP_FRONT_DIRECTION } from "../config"
+import {
+  getMode,
+  setMode,
+  getTransitioning,
+  setTransitioning,
+  getTransitionStart,
+  setTransitionStart,
+  getGoreView,
+  setGoreViewState
+} from "../state"
+
+export type { Mode } from "../state"
+export { getMode } from "../state"
+export type TransitionContext = {
+  ctx: SceneContext
+  onModeChange: () => void
+  /** 360°モードに切り替わった直後に呼ぶ（展開モードのサブ状態をオフにする） */
+  onEnterWorld?: () => void
+}
 
 const DURATION = 1800
 const U = SIZE_CONFIG.unwrap
@@ -9,40 +28,25 @@ function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
 }
 
-export type Mode = "world" | "unwrap"
-
-export type TransitionContext = {
-  ctx: SceneContext
-  onModeChange: () => void
-}
-
-let mode: Mode = "world"
-let transitioning = false
-let transitionStart = 0
-
-export function getMode(): Mode {
-  return mode
-}
-
 export function isTransitioning(): boolean {
-  return transitioning
+  return getTransitioning()
 }
 
 export function startToUnwrap(): void {
-  if (mode === "unwrap" || transitioning) return
-  transitioning = true
-  transitionStart = performance.now()
+  if (getMode() === "unwrap" || getTransitioning()) return
+  setTransitioning(true)
+  setTransitionStart(performance.now())
 }
 
 export function startToWorld(): void {
-  if (mode === "world" || transitioning) return
-  transitioning = true
-  transitionStart = performance.now()
+  if (getMode() === "world" || getTransitioning()) return
+  setTransitioning(true)
+  setTransitionStart(performance.now())
 }
 
 function setWorld(t: TransitionContext): void {
-  const { ctx, onModeChange } = t
-  mode = "world"
+  const { ctx, onModeChange, onEnterWorld } = t
+  setMode("world")
   ctx.controls.enabled = true
   ctx.sphereWireframe.visible = false
   ctx.sphereMeridians.visible = false
@@ -51,6 +55,7 @@ function setWorld(t: TransitionContext): void {
   ctx.planeGrid.visible = false
   ctx.goreMesh.visible = false
   ctx.goreMorphMesh.visible = false
+  ctx.sphere.visible = true
   ctx.planeMaterial.opacity = 0
   ctx.sphere.scale.setScalar(1)
   ctx.sphere.position.set(0, 0, 0)
@@ -58,22 +63,24 @@ function setWorld(t: TransitionContext): void {
   ctx.camera.position.set(0, 0, 0.1)
   ctx.controls.target.set(0, 0, 0)
   ctx.camera.lookAt(0, 0, 0)
-  // 初期表示・戻る時の上下逆転を防ぐため OrbitControls の _spherical をカメラ位置に同期
   const ctrl = ctx.controls as unknown as { _quat: THREE.Quaternion; _spherical: THREE.Spherical }
   if (ctrl._quat && ctrl._spherical) {
     const offset = new THREE.Vector3().subVectors(ctx.camera.position, ctx.controls.target)
     offset.applyQuaternion(ctrl._quat)
     ctrl._spherical.setFromVector3(offset)
   }
+  onEnterWorld?.()
   onModeChange()
 }
 
-export function isGoreView(ctx: SceneContext): boolean {
-  return ctx.goreMesh.visible || ctx.goreMorphMesh.visible
+/** ゴア表示かどうか（state を参照） */
+export function isGoreView(_ctx?: SceneContext): boolean {
+  return getGoreView()
 }
 
-/** ゴア表示の切り替え。平面は常に表示したまま。 */
+/** ゴア表示の切り替え。state を更新し、シーンの表示を同期する。 */
 export function setGoreView(ctx: SceneContext, show: boolean): void {
+  setGoreViewState(show)
   ctx.goreMesh.visible = false
   ctx.goreMesh.position.set(0, U.planePositionY, 0)
   ctx.plane.visible = true
@@ -88,7 +95,7 @@ export function setGoreView(ctx: SceneContext, show: boolean): void {
 
 function setUnwrap(t: TransitionContext): void {
   const { ctx, onModeChange } = t
-  mode = "unwrap"
+  setMode("unwrap")
   ctx.controls.enabled = false
   ctx.sphereWireframe.visible = true
   ctx.sphereMeridians.visible = true
@@ -106,8 +113,7 @@ function setUnwrap(t: TransitionContext): void {
   const invQuat = sphere.quaternion.clone().invert()
   const objDir = viewDir.clone().applyQuaternion(invQuat)
   const front = UNWRAP_FRONT_DIRECTION.clone()
-  sphere.quaternion.setFromUnitVectors(objDir, front) // 正面は常に固定 (0,0,-1)
-  // setFromUnitVectors が上下反転解を選ぶ場合があるので補正
+  sphere.quaternion.setFromUnitVectors(objDir, front)
   const sphereUp = new THREE.Vector3(0, 1, 0).applyQuaternion(sphere.quaternion)
   if (sphereUp.y < 0) {
     const flip = new THREE.Quaternion().setFromAxisAngle(front, Math.PI)
@@ -122,14 +128,14 @@ function setUnwrap(t: TransitionContext): void {
 }
 
 export function updateTransition(t: TransitionContext): void {
-  if (!transitioning) return
+  if (!getTransitioning()) return
   const { ctx } = t
   const { camera, sphere, plane, planeGrid, controls, planeMaterial } = ctx
-  const elapsed = performance.now() - transitionStart
+  const elapsed = performance.now() - getTransitionStart()
   const timeT = Math.min(elapsed / DURATION, 1)
   const s = easeInOutCubic(timeT)
 
-  if (mode === "world") {
+  if (getMode() === "world") {
     camera.position.set(0, 0, 0.1 + (U.cameraZ - 0.1) * s)
     sphere.scale.setScalar(1 - (1 - U.sphereScale) * s)
     sphere.position.set(0, U.spherePositionY * s, 0)
@@ -147,7 +153,7 @@ export function updateTransition(t: TransitionContext): void {
       planeMaterial.opacity = Math.min(1, (s - 0.35) / 0.45)
     }
     if (timeT >= 1) {
-      transitioning = false
+      setTransitioning(false)
       setUnwrap(t)
     }
   } else {
@@ -173,7 +179,7 @@ export function updateTransition(t: TransitionContext): void {
       planeMaterial.opacity = 0
     }
     if (timeT >= 1) {
-      transitioning = false
+      setTransitioning(false)
       setWorld(t)
     }
   }

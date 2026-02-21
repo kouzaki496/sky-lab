@@ -10,11 +10,14 @@ import {
   isGoreView,
   type TransitionContext
 } from "./transition"
+import { resetUnwrapState, getUvLineVisible, setUvLineVisibleState } from "./state"
 import { createUVMarker } from "./uvMarker"
 import {
   updateGoreUnfoldAnimation,
   updateGoreFoldAnimation,
-  toggleGoreView
+  toggleGoreView,
+  resetGoreAnimation,
+  startGoreFoldAnimation
 } from "./goreAnimation"
 
 const ctx = createScene()
@@ -32,6 +35,9 @@ function updateModeButton(): void {
       btn.setAttribute("aria-label", "パノラマで見る")
     }
   }
+  // 360°では展開ボタンのみ表示
+  const btnUvLine = document.getElementById("btn-uv-line")
+  if (btnUvLine) btnUvLine.style.display = m === "world" ? "none" : ""
   const btnUnfold = document.getElementById("btn-unfold")
   if (btnUnfold) {
     btnUnfold.style.display = m === "unwrap" ? "" : "none"
@@ -40,8 +46,27 @@ function updateModeButton(): void {
   }
 }
 
-const transitionContext: TransitionContext = { ctx, onModeChange: updateModeButton }
-const uvMarker = createUVMarker(ctx, getMode)
+const uvMarker = createUVMarker(
+  ctx,
+  getMode,
+  () => isGoreView(ctx),
+  getUvLineVisible,
+  setUvLineVisibleState
+)
+
+function onEnterWorld(): void {
+  resetUnwrapState()
+  resetGoreAnimation(ctx)
+  updateModeButton()
+  const btnUv = document.getElementById("btn-uv-line")
+  if (btnUv) btnUv.setAttribute("aria-pressed", "false")
+}
+
+const transitionContext: TransitionContext = {
+  ctx,
+  onModeChange: updateModeButton,
+  onEnterWorld
+}
 
 // --- 360°モード: カメラを球内に固定し OrbitControls の内部状態を同期 ---
 const _worldDir = new THREE.Vector3()
@@ -145,23 +170,44 @@ window.addEventListener("resize", () => {
 })
 
 window.addEventListener("keydown", (e) => {
-  if (e.key === "1") startToWorld()
+  if (e.key === "1") {
+    onEnterWorld()
+    startToWorld()
+  }
   if (e.key === "2") startToUnwrap()
 })
 
 document.getElementById("btn-mode")?.addEventListener("click", () => {
   if (getMode() === "world") startToUnwrap()
-  else startToWorld()
+  else {
+    onEnterWorld()
+    startToWorld()
+  }
 })
 
 document.getElementById("btn-uv-line")?.addEventListener("click", () => {
   const visible = !uvMarker.getUvLineVisible()
-  uvMarker.setUvLineVisible(visible)
   const btn = document.getElementById("btn-uv-line")
-  if (btn) btn.setAttribute("aria-pressed", String(visible))
+  if (visible && isGoreView(ctx)) {
+    // UV対応線を表示するためにゴア図を戻す
+    uvMarker.setUvLineVisible(true)
+    if (btn) btn.setAttribute("aria-pressed", "true")
+    startGoreFoldAnimation(ctx)
+  } else {
+    uvMarker.setUvLineVisible(visible)
+    if (btn) btn.setAttribute("aria-pressed", String(visible))
+  }
 })
 
-document.getElementById("btn-unfold")?.addEventListener("click", () => toggleGoreView(ctx))
+document.getElementById("btn-unfold")?.addEventListener("click", () => {
+  // 経線展開時はUV対応線を非表示にする
+  if (!isGoreView(ctx)) {
+    uvMarker.setUvLineVisible(false)
+    const btnUv = document.getElementById("btn-uv-line")
+    if (btnUv) btnUv.setAttribute("aria-pressed", "false")
+  }
+  toggleGoreView(ctx)
+})
 
 // --- 起動 ---
 initTransition(transitionContext)

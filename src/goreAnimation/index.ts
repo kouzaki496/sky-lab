@@ -15,6 +15,16 @@ function easeInOutCubic(t: number): number {
 let goreUnfoldStart: number | null = null
 let goreFoldStart: number | null = null
 
+/** ゴアアニメーションを中断し、展開モードのサブ状態をオフにする（モード切替時用） */
+export function resetGoreAnimation(ctx: SceneContext): void {
+  goreUnfoldStart = null
+  goreFoldStart = null
+  ctx.goreMorphMesh.visible = false
+  ctx.sphere.visible = true
+  ctx.goreMesh.visible = false
+  setGoreView(ctx, false)
+}
+
 export function startGoreUnfoldAnimation(ctx: SceneContext): void {
   if (getMode() !== "unwrap" || isGoreView(ctx) || goreUnfoldStart !== null || goreFoldStart !== null) return
   const { goreMorphMesh, sphere } = ctx
