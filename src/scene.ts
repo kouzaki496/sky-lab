@@ -204,9 +204,14 @@ function createGoreUnwrapMesh(texture: THREE.Texture, numGores: number, latSteps
   return new THREE.Mesh(geo, mat)
 }
 
-const GORE_SLIT_GAP = 0.22
-const GORE_SLIT_PUSH = 0.06
-const GORE_SPREAD_ANGLE = (75 * Math.PI) / 180
+/** 経線を強調するだけ（切れ目は作らない）。法線方向に少し押し出して稜線に見せる */
+const GORE_MERIDIAN_EMPHASIS = 0.05
+/** 赤道を接着したまま上下をはがす角度（ラジアン） */
+const GORE_EQUATOR_PEEL_ANGLE = (55 * Math.PI) / 180
+/** はがれ状態の水平方向スケール（横に伸びて見えるのを抑える） */
+const GORE_EQUATOR_RING_H_SCALE = 0.88
+/** 平面展開時の幅スケール（同様に横伸びを抑える） */
+const GORE_FLAT_H_SCALE = 0.92
 
 /** ベクトル v を原点を通る軸 ax まわりに angle ラジアン回転 */
 function rotateAroundAxis(vx: number, vy: number, vz: number, ax: number, ay: number, az: number, angle: number): [number, number, number] {
@@ -223,7 +228,7 @@ function rotateAroundAxis(vx: number, vy: number, vz: number, ax: number, ay: nu
   ]
 }
 
-/** 4段階: 球体 → 経線スリット → 外側に開く → 平面。3つの morphTarget で補間。 */
+/** 3段階: 球体 → 経線強調 → 赤道で接着・上下はがれ（円状） → 平面。3つの morphTarget で補間。 */
 function createSphereToGoreMorphMesh(
   texture: THREE.Texture,
   numGores: number,
@@ -235,7 +240,7 @@ function createSphereToGoreMorphMesh(
   const r = 2
   const positions: number[] = []
   const positionsSlit: number[] = []
-  const positionsOpened: number[] = []
+  const positionsEquatorRing: number[] = []
   const positionsFlat: number[] = []
   const uvs: number[] = []
   const indices: number[] = []
@@ -243,10 +248,10 @@ function createSphereToGoreMorphMesh(
 
   for (let g = 0; g < numGores; g++) {
     const xOffset = (g - (numGores - 1) / 2) * goreW
-    const phiHinge = (g / numGores) * Math.PI * 2
-    const ax = -Math.cos(phiHinge)
+    const phiCenter = ((g + 0.5) / numGores) * Math.PI * 2
+    const ax = Math.sin(phiCenter)
     const ay = 0
-    const az = Math.sin(phiHinge)
+    const az = Math.cos(phiCenter)
     for (let j = 0; j <= latSteps; j++) {
       const v = j / latSteps
       const theta = v * Math.PI
@@ -261,21 +266,33 @@ function createSphereToGoreMorphMesh(
       positions.push(xL, yL, zL, xR, yR, zR)
       const nL = Math.sqrt(xL * xL + yL * yL + zL * zL) || 1
       const nR = Math.sqrt(xR * xR + yR * yR + zR * zR) || 1
-      const gap = GORE_SLIT_GAP
-      const push = GORE_SLIT_PUSH
-      const sLx = xL - (xL / nL) * gap + (xL / nL) * push
-      const sLy = yL - (yL / nL) * gap + (yL / nL) * push
-      const sLz = zL - (zL / nL) * gap + (zL / nL) * push
-      const sRx = xR + (xR / nR) * gap + (xR / nR) * push
-      const sRy = yR + (yR / nR) * gap + (yR / nR) * push
-      const sRz = zR + (zR / nR) * gap + (zR / nR) * push
+      const push = GORE_MERIDIAN_EMPHASIS
+      const sLx = xL + (xL / nL) * push
+      const sLy = yL + (yL / nL) * push
+      const sLz = zL + (zL / nL) * push
+      const sRx = xR + (xR / nR) * push
+      const sRy = yR + (yR / nR) * push
+      const sRz = zR + (zR / nR) * push
       positionsSlit.push(sLx, sLy, sLz, sRx, sRy, sRz)
-      const [rRx, rRy, rRz] = rotateAroundAxis(sRx, sRy, sRz, ax, ay, az, GORE_SPREAD_ANGLE)
-      positionsOpened.push(sLx, sLy, sLz, rRx, rRy, rRz)
+      const peelAngle =
+        v < 0.5
+          ? ((0.5 - v) / 0.5) * GORE_EQUATOR_PEEL_ANGLE
+          : -((v - 0.5) / 0.5) * GORE_EQUATOR_PEEL_ANGLE
+      const [eLx, eLy, eLz] = rotateAroundAxis(sLx, sLy, sLz, ax, ay, az, peelAngle)
+      const [eRx, eRy, eRz] = rotateAroundAxis(sRx, sRy, sRz, ax, ay, az, peelAngle)
+      positionsEquatorRing.push(
+        eLx * GORE_EQUATOR_RING_H_SCALE,
+        eLy,
+        eLz * GORE_EQUATOR_RING_H_SCALE,
+        eRx * GORE_EQUATOR_RING_H_SCALE,
+        eRy,
+        eRz * GORE_EQUATOR_RING_H_SCALE
+      )
       const t = v * Math.PI
-      const halfW = (goreW / 2) * Math.sin(t)
+      const halfW = (goreW / 2) * Math.sin(t) * GORE_FLAT_H_SCALE
       const yFlat = totalH / 2 - v * totalH
-      positionsFlat.push(xOffset - halfW, yFlat, z, xOffset + halfW, yFlat, z)
+      const xOff = xOffset * GORE_FLAT_H_SCALE
+      positionsFlat.push(xOff - halfW, yFlat, z, xOff + halfW, yFlat, z)
       uvs.push(g / numGores, 1 - v, (g + 1) / numGores, 1 - v)
     }
   }
@@ -292,12 +309,8 @@ function createSphereToGoreMorphMesh(
   const positionsM1: number[] = []
   const positionsM2: number[] = []
   for (let i = 0; i < positions.length; i++) {
-    positionsM1.push(
-      positions[i] + (positionsOpened[i] - positionsSlit[i])
-    )
-    positionsM2.push(
-      positions[i] + (positionsFlat[i] - positionsOpened[i])
-    )
+    positionsM1.push(positions[i] + (positionsEquatorRing[i] - positionsSlit[i]))
+    positionsM2.push(positions[i] + (positionsFlat[i] - positionsEquatorRing[i]))
   }
   const geo = new THREE.BufferGeometry()
   geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3))

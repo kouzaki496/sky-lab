@@ -236,9 +236,9 @@ canvas.addEventListener("pointerleave", () => {
 })
 
 const GORE_SLIT_MS = 700
-const GORE_PEEL_MS = 800
-const GORE_FLAT_MS = 900
-const GORE_UNFOLD_DURATION = GORE_SLIT_MS + GORE_PEEL_MS + GORE_FLAT_MS
+const GORE_EQUATOR_PEEL_MS = 800
+const GORE_SPREAD_MS = 900
+const GORE_UNFOLD_DURATION = GORE_SLIT_MS + GORE_EQUATOR_PEEL_MS + GORE_SPREAD_MS
 
 function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
@@ -267,16 +267,16 @@ function updateGoreUnfoldAnimation(): void {
     inf[1] = 0
     inf[2] = 0
     goreMorphMesh.position.y = U.spherePositionY
-  } else if (elapsed < GORE_SLIT_MS + GORE_PEEL_MS) {
+  } else if (elapsed < GORE_SLIT_MS + GORE_EQUATOR_PEEL_MS) {
     inf[0] = 1
-    const t = (elapsed - GORE_SLIT_MS) / GORE_PEEL_MS
+    const t = (elapsed - GORE_SLIT_MS) / GORE_EQUATOR_PEEL_MS
     inf[1] = easeInOutCubic(t)
     inf[2] = 0
     goreMorphMesh.position.y = U.spherePositionY
   } else if (elapsed < GORE_UNFOLD_DURATION) {
     inf[0] = 1
     inf[1] = 1
-    const t = (elapsed - GORE_SLIT_MS - GORE_PEEL_MS) / GORE_FLAT_MS
+    const t = (elapsed - GORE_SLIT_MS - GORE_EQUATOR_PEEL_MS) / GORE_SPREAD_MS
     const s = easeInOutCubic(t)
     inf[2] = s
     // ゴアは上（球体位置）に留め、下の平面はそのまま表示
