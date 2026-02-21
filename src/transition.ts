@@ -44,9 +44,8 @@ function setWorld(t: TransitionContext): void {
   mode = "world"
   ctx.controls.enabled = true
   ctx.sphereWireframe.visible = false
+  ctx.sphereMeridians.visible = false
   ctx.sphereEquator.visible = false
-  ctx.sphereEquatorRulers.visible = false
-  ctx.testSphere.visible = false
   ctx.plane.visible = false
   ctx.planeGrid.visible = false
   ctx.planeMaterial.opacity = 0
@@ -64,9 +63,8 @@ function setUnwrap(t: TransitionContext): void {
   mode = "unwrap"
   ctx.controls.enabled = false
   ctx.sphereWireframe.visible = true
+  ctx.sphereMeridians.visible = true
   ctx.sphereEquator.visible = true
-  ctx.sphereEquatorRulers.visible = true
-  ctx.testSphere.visible = true
   ctx.plane.visible = true
   ctx.planeGrid.visible = true
   ctx.planeMaterial.opacity = 1

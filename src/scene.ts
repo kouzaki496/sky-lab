@@ -28,15 +28,45 @@ export type SceneContext = {
   canvas: HTMLCanvasElement
   sphere: THREE.Mesh
   sphereWireframe: THREE.LineSegments
+  sphereMeridians: THREE.LineSegments
   sphereEquator: THREE.LineLoop
-  /** 赤道〜直上緯線の距離を等間隔で示す定規（平行なら全長一致） */
-  sphereEquatorRulers: THREE.LineSegments
-  /** 検証用: 回転なしの別球体＋同じロジックのグリッド（頂点ずれの比較用） */
-  testSphere: THREE.Group
   plane: THREE.Mesh
   planeGrid: THREE.LineSegments
   planeEquator: THREE.Line
   planeMaterial: THREE.MeshBasicMaterial
+}
+
+/**
+ * 球体の経線: 北極から南極へ、一定の方位角に沿った半円。
+ * ジオメトリの「列」の頂点を ix 固定で iy を 0..heightSegments につなぐ。
+ */
+function createSphereMeridiansFromGeometry(
+  geometry: THREE.SphereGeometry,
+  segmentsLon: number
+): THREE.LineSegments {
+  const pos = geometry.getAttribute("position")
+  const { widthSegments, heightSegments } = geometry.parameters
+  const W = widthSegments + 1
+  const positions: number[] = []
+  const step = Math.max(1, Math.floor((widthSegments + 1) / segmentsLon))
+
+  for (let ix = 0; ix <= widthSegments; ix += step) {
+    for (let iy = 0; iy < heightSegments; iy++) {
+      const i0 = iy * W + ix
+      const i1 = (iy + 1) * W + ix
+      positions.push(
+        pos.getX(i0), pos.getY(i0), pos.getZ(i0),
+        pos.getX(i1), pos.getY(i1), pos.getZ(i1)
+      )
+    }
+  }
+
+  const geo = new THREE.BufferGeometry()
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3))
+  return new THREE.LineSegments(
+    geo,
+    new THREE.LineBasicMaterial({ color: 0x333333, transparent: true, opacity: 0.38, depthWrite: false })
+  )
 }
 
 /**
@@ -76,58 +106,6 @@ function createSphereGridFromGeometry(
   return new THREE.LineSegments(
     geo,
     new THREE.LineBasicMaterial({ color: 0x333333, transparent: true, opacity: 0.38, depthWrite: false })
-  )
-}
-
-/**
- * 赤道と一番近い緯線の距離を、等間隔の phi で測る線（定規）。
- * 平行なら全ての線の長さが一致する。表示用に黄色で描く。
- */
-function createEquatorToFirstLatRulers(
-  geometry: THREE.SphereGeometry,
-  segmentsLat: number,
-  numRulers: number
-): THREE.LineSegments {
-  const pos = geometry.getAttribute("position")
-  const { radius, widthSegments, heightSegments } = geometry.parameters
-  const W = widthSegments + 1
-  const iyEquator = Math.round(heightSegments / 2)
-  const iyFirst = Math.round((1 / segmentsLat) * heightSegments)
-  if (iyFirst <= 0 || iyFirst >= heightSegments) {
-    return new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xffff00 }))
-  }
-  const yFirst = pos.getY(iyFirst * W)
-  const RFirst = Math.sqrt(Math.max(0, radius * radius - yFirst * yFirst))
-  const positions: number[] = []
-  const lengths: number[] = []
-  for (let k = 0; k < numRulers; k++) {
-    const ix = Math.round((k / numRulers) * widthSegments) % (widthSegments + 1)
-    const iEq = iyEquator * W + ix
-    const xEq = pos.getX(iEq)
-    const yEq = pos.getY(iEq)
-    const zEq = pos.getZ(iEq)
-    const phi = (ix / widthSegments) * Math.PI * 2
-    const xLat = -RFirst * Math.cos(phi)
-    const zLat = RFirst * Math.sin(phi)
-    positions.push(xEq, yEq, zEq, xLat, yFirst, zLat)
-    const len = Math.hypot(xLat - xEq, yFirst - yEq, zLat - zEq)
-    lengths.push(len)
-  }
-  const minL = Math.min(...lengths)
-  const maxL = Math.max(...lengths)
-  const equal = maxL - minL < 1e-6
-  if (typeof console !== "undefined" && console.log) {
-    console.log(
-      "[定規] 赤道〜直上緯線の距離:",
-      lengths.map((l) => l.toFixed(6)).join(", "),
-      equal ? "→ 等距離" : `→ ばらつきあり (min=${minL.toFixed(6)}, max=${maxL.toFixed(6)})`
-    )
-  }
-  const geo = new THREE.BufferGeometry()
-  geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3))
-  return new THREE.LineSegments(
-    geo,
-    new THREE.LineBasicMaterial({ color: 0xddcc00, linewidth: 2, depthWrite: false })
   )
 }
 
@@ -205,33 +183,13 @@ export function createScene(): SceneContext {
   sphereWireframe.visible = false
   sphere.add(sphereWireframe)
 
+  const sphereMeridians = createSphereMeridiansFromGeometry(sphereGeometry, SPHERE_GRID_LONGITUDE)
+  sphereMeridians.visible = false
+  sphere.add(sphereMeridians)
+
   const sphereEquator = createSphereEquatorFromGeometry(sphereGeometry)
   sphereEquator.visible = false
   sphere.add(sphereEquator)
-
-  const sphereEquatorRulers = createEquatorToFirstLatRulers(sphereGeometry, SPHERE_GRID_LATITUDE, 12)
-  sphereEquatorRulers.visible = false
-  sphere.add(sphereEquatorRulers)
-
-  // --- 検証用: 別球体（回転なし・同じグリッドロジックで頂点ずれを比較）---
-  const testRadius = 1
-  const testGeometry = new THREE.SphereGeometry(testRadius, SEGMENTS, SEGMENTS)
-  const testMesh = new THREE.Mesh(
-    testGeometry,
-    new THREE.MeshBasicMaterial({ color: 0xe0e0e0, side: THREE.DoubleSide })
-  )
-  const testGrid = createSphereGridFromGeometry(testGeometry, SPHERE_GRID_LONGITUDE, SPHERE_GRID_LATITUDE)
-  const testEquator = createSphereEquatorFromGeometry(testGeometry)
-  const testEquatorRulers = createEquatorToFirstLatRulers(testGeometry, SPHERE_GRID_LATITUDE, 12)
-  const testSphere = new THREE.Group()
-  testSphere.add(testMesh)
-  testSphere.add(testGrid)
-  testSphere.add(testEquator)
-  testSphere.add(testEquatorRulers)
-  testSphere.position.set(3, 0, 0) // unwrap 時カメラから見て本球の右
-  testSphere.scale.setScalar(SIZE_CONFIG.sphereRadius * 0.04 / testRadius) // 本球と同程度の見かけの大きさ
-  testSphere.visible = false
-  scene.add(testSphere)
 
   // --- 平面 ---
   const planeGeometry = new THREE.PlaneGeometry(SIZE_CONFIG.planeWidth, SIZE_CONFIG.planeHeight, SEGMENTS, Math.round(SEGMENTS / 2))
@@ -252,7 +210,7 @@ export function createScene(): SceneContext {
 
   return {
     scene, camera, renderer, controls, canvas: renderer.domElement,
-    sphere, sphereWireframe, sphereEquator, sphereEquatorRulers, testSphere,
+    sphere, sphereWireframe, sphereMeridians, sphereEquator,
     plane, planeGrid, planeEquator, planeMaterial
   }
 }
