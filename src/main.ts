@@ -244,9 +244,10 @@ function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
 }
 let goreUnfoldStart: number | null = null
+let goreFoldStart: number | null = null
 
 function startGoreUnfoldAnimation(): void {
-  if (getMode() !== "unwrap" || isGoreView(ctx) || goreUnfoldStart !== null) return
+  if (getMode() !== "unwrap" || isGoreView(ctx) || goreUnfoldStart !== null || goreFoldStart !== null) return
   goreMorphMesh.visible = true
   goreMorphMesh.position.set(0, U.spherePositionY, 0)
   goreMorphMesh.morphTargetInfluences![0] = 0
@@ -279,15 +280,59 @@ function updateGoreUnfoldAnimation(): void {
     const t = (elapsed - GORE_SLIT_MS - GORE_EQUATOR_PEEL_MS) / GORE_SPREAD_MS
     const s = easeInOutCubic(t)
     inf[2] = s
-    // ゴアは上（球体位置）に留め、下の平面はそのまま表示
     goreMorphMesh.position.y = U.spherePositionY
   } else {
     goreUnfoldStart = null
     goreMorphMesh.morphTargetInfluences![0] = 1
     goreMorphMesh.morphTargetInfluences![1] = 1
     goreMorphMesh.morphTargetInfluences![2] = 1
-    // goreMorphMesh は表示のまま（上に広がったゴア）、平面は下に表示されたまま
     setGoreView(ctx, true)
+    updateModeButton()
+  }
+}
+
+function startGoreFoldAnimation(): void {
+  if (getMode() !== "unwrap" || !isGoreView(ctx) || goreUnfoldStart !== null || goreFoldStart !== null) return
+  goreMorphMesh.visible = true
+  goreMorphMesh.position.set(0, U.spherePositionY, 0)
+  goreMorphMesh.morphTargetInfluences![0] = 1
+  goreMorphMesh.morphTargetInfluences![1] = 1
+  goreMorphMesh.morphTargetInfluences![2] = 1
+  sphere.visible = false
+  ctx.goreMesh.visible = false
+  goreFoldStart = performance.now()
+}
+
+function updateGoreFoldAnimation(): void {
+  if (goreFoldStart === null) return
+  const elapsed = performance.now() - goreFoldStart
+  const inf = goreMorphMesh.morphTargetInfluences!
+  if (elapsed < GORE_SPREAD_MS) {
+    const t = elapsed / GORE_SPREAD_MS
+    inf[2] = 1 - easeInOutCubic(t)
+    inf[0] = 1
+    inf[1] = 1
+    goreMorphMesh.position.y = U.spherePositionY
+  } else if (elapsed < GORE_SPREAD_MS + GORE_EQUATOR_PEEL_MS) {
+    const t = (elapsed - GORE_SPREAD_MS) / GORE_EQUATOR_PEEL_MS
+    inf[1] = 1 - easeInOutCubic(t)
+    inf[2] = 0
+    inf[0] = 1
+    goreMorphMesh.position.y = U.spherePositionY
+  } else if (elapsed < GORE_UNFOLD_DURATION) {
+    const t = (elapsed - GORE_SPREAD_MS - GORE_EQUATOR_PEEL_MS) / GORE_SLIT_MS
+    inf[0] = 1 - easeInOutCubic(t)
+    inf[1] = 0
+    inf[2] = 0
+    goreMorphMesh.position.y = U.spherePositionY
+  } else {
+    goreFoldStart = null
+    goreMorphMesh.morphTargetInfluences![0] = 0
+    goreMorphMesh.morphTargetInfluences![1] = 0
+    goreMorphMesh.morphTargetInfluences![2] = 0
+    goreMorphMesh.visible = false
+    sphere.visible = true
+    setGoreView(ctx, false)
     updateModeButton()
   }
 }
@@ -295,8 +340,7 @@ function updateGoreUnfoldAnimation(): void {
 function toggleGoreView(): void {
   if (getMode() !== "unwrap") return
   if (isGoreView(ctx)) {
-    setGoreView(ctx, false)
-    updateModeButton()
+    startGoreFoldAnimation()
   } else {
     startGoreUnfoldAnimation()
   }
@@ -306,6 +350,7 @@ function animate(): void {
   requestAnimationFrame(animate)
   updateTransition(transitionContext)
   updateGoreUnfoldAnimation()
+  updateGoreFoldAnimation()
   updateUVLine()
   if (controls.enabled) controls.update()
   clampCameraInSphere()

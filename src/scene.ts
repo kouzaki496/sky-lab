@@ -208,10 +208,10 @@ function createGoreUnwrapMesh(texture: THREE.Texture, numGores: number, latSteps
 const GORE_MERIDIAN_EMPHASIS = 0.05
 /** 赤道を接着したまま上下をはがす角度（ラジアン） */
 const GORE_EQUATOR_PEEL_ANGLE = (55 * Math.PI) / 180
-/** はがれ状態の水平方向スケール（横に伸びて見えるのを抑える） */
-const GORE_EQUATOR_RING_H_SCALE = 0.88
-/** 平面展開時の幅スケール（同様に横伸びを抑える） */
-const GORE_FLAT_H_SCALE = 0.92
+/** はがれ状態の縦方向スケール（縦が縮んで見えるのを補正） */
+const GORE_EQUATOR_RING_V_SCALE = 1.14
+/** 平面展開時の高さスケール（同様に縦縮みを補正） */
+const GORE_FLAT_V_SCALE = 1.12
 
 /** ベクトル v を原点を通る軸 ax まわりに angle ラジアン回転 */
 function rotateAroundAxis(vx: number, vy: number, vz: number, ax: number, ay: number, az: number, angle: number): [number, number, number] {
@@ -280,19 +280,11 @@ function createSphereToGoreMorphMesh(
           : -((v - 0.5) / 0.5) * GORE_EQUATOR_PEEL_ANGLE
       const [eLx, eLy, eLz] = rotateAroundAxis(sLx, sLy, sLz, ax, ay, az, peelAngle)
       const [eRx, eRy, eRz] = rotateAroundAxis(sRx, sRy, sRz, ax, ay, az, peelAngle)
-      positionsEquatorRing.push(
-        eLx * GORE_EQUATOR_RING_H_SCALE,
-        eLy,
-        eLz * GORE_EQUATOR_RING_H_SCALE,
-        eRx * GORE_EQUATOR_RING_H_SCALE,
-        eRy,
-        eRz * GORE_EQUATOR_RING_H_SCALE
-      )
+      positionsEquatorRing.push(eLx, eLy * GORE_EQUATOR_RING_V_SCALE, eLz, eRx, eRy * GORE_EQUATOR_RING_V_SCALE, eRz)
       const t = v * Math.PI
-      const halfW = (goreW / 2) * Math.sin(t) * GORE_FLAT_H_SCALE
-      const yFlat = totalH / 2 - v * totalH
-      const xOff = xOffset * GORE_FLAT_H_SCALE
-      positionsFlat.push(xOff - halfW, yFlat, z, xOff + halfW, yFlat, z)
+      const halfW = (goreW / 2) * Math.sin(t)
+      const yFlat = (totalH / 2 - v * totalH) * GORE_FLAT_V_SCALE
+      positionsFlat.push(xOffset - halfW, yFlat, z, xOffset + halfW, yFlat, z)
       uvs.push(g / numGores, 1 - v, (g + 1) / numGores, 1 - v)
     }
   }
