@@ -1,4 +1,3 @@
-import "./styles.css"
 import * as THREE from "three"
 import { createScene, SIZE_CONFIG } from "./scene"
 import {
