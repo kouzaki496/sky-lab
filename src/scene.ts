@@ -5,7 +5,7 @@ const SEGMENTS = 72
 const SPHERE_GRID_LONGITUDE = 12
 const SPHERE_GRID_LATITUDE = 24
 
-/** テクスチャ中央 (u=0.5) を正面 (+Z) に向ける回転（transition で unwrap 時にも適用するため export） */
+/** テクスチャ中央を正面 (+Z) に向ける Y 回転。unwrap 時の向き計算で参照。 */
 export const SPHERE_GRID_ROTATION_Y = -Math.PI / 2
 
 export const SIZE_CONFIG = {
@@ -45,10 +45,7 @@ export type SceneContext = {
   unfoldMesh: THREE.Mesh
 }
 
-/**
- * 球体の経線: 北極から南極へ、一定の方位角に沿った半円。
- * ジオメトリの「列」の頂点を ix 固定で iy を 0..heightSegments につなぐ。
- */
+/** 球体の経線（北極→南極の半円）。ジオメトリの列を ix 固定でつなぐ。 */
 function createSphereMeridiansFromGeometry(
   geometry: THREE.SphereGeometry,
   segmentsLon: number
@@ -78,10 +75,7 @@ function createSphereMeridiansFromGeometry(
   )
 }
 
-/**
- * 球体グリッド: 緯線のみ。ジオメトリの「行」の y を使い、平面 y=const に円を描く（赤道と平行）
- * 円の半径 R = sqrt(r² - y²)、Three.js の x,z の向き: x=-R*cos(phi), z=R*sin(phi)
- */
+/** 球体の緯線（赤道に平行な円）。y=const の円周を x,z で描く。 */
 function createSphereGridFromGeometry(
   geometry: THREE.SphereGeometry,
   _segmentsLog: number,
@@ -118,7 +112,7 @@ function createSphereGridFromGeometry(
   )
 }
 
-/** 赤道 **/
+/** 球体の赤道（1本の線ループ）。 */
 function createSphereEquatorFromGeometry(geometry: THREE.SphereGeometry): THREE.LineLoop {
   const pos = geometry.getAttribute("position")
   const { widthSegments, heightSegments } = geometry.parameters
@@ -139,7 +133,7 @@ function createSphereEquatorFromGeometry(geometry: THREE.SphereGeometry): THREE.
   )
 }
 
-/** 平面用グリッド */
+/** 平面のグリッド線。 */
 function createPlaneGrid(w: number, h: number, segX: number, segY: number): THREE.LineSegments {
   const hw = w / 2, hh = h / 2, positions: number[] = [], z = 0.002
   for (let i = 0; i <= segX; i++) {
@@ -154,14 +148,14 @@ function createPlaneGrid(w: number, h: number, segX: number, segY: number): THRE
   return new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: 0x333333, transparent: true, opacity: 0.38 }))
 }
 
-/** 平面の赤道 */
+/** 平面の赤道（横1本の線）。 */
 function createPlaneEquator(width: number): THREE.Line {
   const hw = width / 2, z = 0.003
   const geo = new THREE.BufferGeometry().setAttribute("position", new THREE.Float32BufferAttribute([-hw, 0, z, hw, 0, z], 3))
   return new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xcc3333, linewidth: 2 }))
 }
 
-/** 橙の皮（ゴア）型の展開図。各片は上下で尖り中央で幅最大、横に並べる。 */
+/** ゴア型の静的な展開図（葉型を横に並べたメッシュ）。 */
 function createGoreUnwrapMesh(texture: THREE.Texture, numGores: number, latSteps: number): THREE.Mesh {
   const totalW = SIZE_CONFIG.planeWidth
   const totalH = SIZE_CONFIG.planeHeight
@@ -204,16 +198,12 @@ function createGoreUnwrapMesh(texture: THREE.Texture, numGores: number, latSteps
   return new THREE.Mesh(geo, mat)
 }
 
-/** 経線を強調するだけ（切れ目は作らない）。法線方向に少し押し出して稜線に見せる */
 const GORE_MERIDIAN_EMPHASIS = 0.05
-/** 赤道を接着したまま上下をはがす角度（ラジアン） */
 const GORE_EQUATOR_PEEL_ANGLE = (55 * Math.PI) / 180
-/** はがれ状態の縦方向スケール（縦が縮んで見えるのを補正） */
 const GORE_EQUATOR_RING_V_SCALE = 1.14
-/** 平面展開時の高さスケール（同様に縦縮みを補正） */
 const GORE_FLAT_V_SCALE = 1.12
 
-/** ベクトル v を原点を通る軸 ax まわりに angle ラジアン回転 */
+/** ベクトルを原点を通る軸まわりに回転（ロドリゲスの公式）。 */
 function rotateAroundAxis(vx: number, vy: number, vz: number, ax: number, ay: number, az: number, angle: number): [number, number, number] {
   const c = Math.cos(angle)
   const s = Math.sin(angle)
@@ -228,7 +218,7 @@ function rotateAroundAxis(vx: number, vy: number, vz: number, ax: number, ay: nu
   ]
 }
 
-/** 3段階: 球体 → 経線強調 → 赤道で接着・上下はがれ（円状） → 平面。3つの morphTarget で補間。 */
+/** 球→経線強調→赤道はがれ（円状）→平面の 3 段階 morph。 */
 function createSphereToGoreMorphMesh(
   texture: THREE.Texture,
   numGores: number,
@@ -330,10 +320,7 @@ function createSphereToGoreMorphMesh(
 const UNFOLD_LON = 12
 const UNFOLD_LAT = 8
 
-/**
- * 経線に沿って球→平面に開くモーフメッシュ。
- * 球（1枚の経線で切った形）と矩形が同じトポロジーで、morphTarget で補間。
- */
+/** 球と矩形を morphTarget で補間するメッシュ（未使用）。 */
 function createUnfoldMesh(texture: THREE.Texture): THREE.Mesh {
   const W = UNFOLD_LON + 1
   const H = UNFOLD_LAT + 1
@@ -401,16 +388,16 @@ export function createScene(): SceneContext {
   const controls = new OrbitControls(camera, renderer.domElement)
   controls.enableZoom = false
   controls.rotateSpeed = -0.25
+  controls.minPolarAngle = 0.001
+  controls.maxPolarAngle = Math.PI / 2
 
   const texture = new THREE.TextureLoader().load("/panorama.jpg")
   texture.colorSpace = THREE.SRGBColorSpace
 
-  // --- 球体 ---
+  // 球体
   const sphereGeometry = new THREE.SphereGeometry(SIZE_CONFIG.sphereRadius, SEGMENTS, SEGMENTS)
   const sphereMaterial = new THREE.MeshBasicMaterial({ map: texture, side: THREE.BackSide })
   const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial)
-
-  // テクスチャ中央を正面に向ける
   sphere.rotation.y = SPHERE_GRID_ROTATION_Y
   scene.add(sphere)
 
@@ -426,7 +413,7 @@ export function createScene(): SceneContext {
   sphereEquator.visible = false
   sphere.add(sphereEquator)
 
-  // --- 平面 ---
+  // 平面
   const planeGeometry = new THREE.PlaneGeometry(SIZE_CONFIG.planeWidth, SIZE_CONFIG.planeHeight, SEGMENTS, Math.round(SEGMENTS / 2))
   const planeMaterial = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true, opacity: 0 })
   const plane = new THREE.Mesh(planeGeometry, planeMaterial)

@@ -11,10 +11,12 @@ import {
   setGoreView,
   type TransitionContext
 } from "./transition"
+
 const ctx = createScene()
 const { scene, camera, renderer, controls, canvas, sphere, plane, goreMorphMesh } = ctx
 const U = SIZE_CONFIG.unwrap
 
+// --- UV・マーカー ---
 const uvPoint = { u: 0.5, v: 0.5 }
 const raycaster = new THREE.Raycaster()
 const mouse = new THREE.Vector2()
@@ -180,7 +182,9 @@ function updateModeButton(): void {
 
 const transitionContext: TransitionContext = { ctx, onModeChange: updateModeButton }
 
+// --- 360°モード: カメラを球内に固定し OrbitControls の内部状態を同期 ---
 const _worldDir = new THREE.Vector3()
+const _orbitOffset = new THREE.Vector3()
 function clampCameraInSphere(): void {
   if (getMode() !== "world" || isTransitioning()) return
   _worldDir.subVectors(camera.position, controls.target)
@@ -189,6 +193,12 @@ function clampCameraInSphere(): void {
   else _worldDir.normalize()
   camera.position.copy(controls.target).add(_worldDir.multiplyScalar(0.1))
   camera.lookAt(controls.target)
+  const ctrl = controls as unknown as { _quat: THREE.Quaternion; _spherical: THREE.Spherical }
+  if (ctrl._quat && ctrl._spherical) {
+    _orbitOffset.subVectors(camera.position, controls.target)
+    _orbitOffset.applyQuaternion(ctrl._quat)
+    ctrl._spherical.setFromVector3(_orbitOffset)
+  }
 }
 
 let sphereDrag = false
@@ -200,6 +210,13 @@ let prevPointerY = 0
 const ROTATE_SPEED = 0.005
 const UV_SMOOTH = 0.4
 
+const _sphereRight = new THREE.Vector3()
+const _sphereUp = new THREE.Vector3()
+const _quatY = new THREE.Quaternion()
+const _quatTilt = new THREE.Quaternion()
+const _quatTiltInv = new THREE.Quaternion()
+
+// --- 展開モード: 球ドラッグはクォータニオンで回転（上下反転防止） ---
 canvas.addEventListener("pointerdown", (e) => {
   if (getMode() !== "unwrap" || isTransitioning()) return
   setMouseFromEvent(e)
@@ -219,9 +236,19 @@ canvas.addEventListener("pointermove", (e) => {
     lastPointerClientX = e.clientX
     lastPointerClientY = e.clientY
   } else if (sphereDrag) {
-    sphere.rotation.y += (e.clientX - prevPointerX) * ROTATE_SPEED
-    sphere.rotation.x -= (e.clientY - prevPointerY) * ROTATE_SPEED
-    sphere.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, sphere.rotation.x))
+    const dx = (e.clientX - prevPointerX) * ROTATE_SPEED
+    const dy = -(e.clientY - prevPointerY) * ROTATE_SPEED
+    _quatY.setFromAxisAngle(new THREE.Vector3(0, 1, 0), dx)
+    sphere.quaternion.premultiply(_quatY)
+    _sphereRight.set(1, 0, 0).applyQuaternion(sphere.quaternion)
+    _quatTilt.setFromAxisAngle(_sphereRight, dy)
+    sphere.quaternion.premultiply(_quatTilt)
+    _sphereUp.set(0, 1, 0).applyQuaternion(sphere.quaternion)
+    if (_sphereUp.y < 0) {
+      _quatTiltInv.copy(_quatTilt).invert()
+      sphere.quaternion.premultiply(_quatTiltInv)
+    }
+    sphere.quaternion.normalize()
     prevPointerX = e.clientX
     prevPointerY = e.clientY
   }
@@ -235,6 +262,7 @@ canvas.addEventListener("pointerleave", () => {
   uvPointDrag = false
 })
 
+// --- ゴア展開アニメ: 経線強調 → 赤道はがれ → 横に展開（逆再生で折りたたみ） ---
 const GORE_SLIT_MS = 700
 const GORE_EQUATOR_PEEL_MS = 800
 const GORE_SPREAD_MS = 900
@@ -410,5 +438,6 @@ document.getElementById("btn-uv-line")?.addEventListener("click", () => {
 
 document.getElementById("btn-unfold")?.addEventListener("click", toggleGoreView)
 
+// --- 起動 ---
 initTransition(transitionContext)
 animate()

@@ -1,3 +1,4 @@
+import * as THREE from "three"
 import type { SceneContext } from "./scene"
 import { SIZE_CONFIG, UNWRAP_FRONT_DIRECTION } from "./scene"
 
@@ -57,6 +58,13 @@ function setWorld(t: TransitionContext): void {
   ctx.camera.position.set(0, 0, 0.1)
   ctx.controls.target.set(0, 0, 0)
   ctx.camera.lookAt(0, 0, 0)
+  // 初期表示・戻る時の上下逆転を防ぐため OrbitControls の _spherical をカメラ位置に同期
+  const ctrl = ctx.controls as unknown as { _quat: THREE.Quaternion; _spherical: THREE.Spherical }
+  if (ctrl._quat && ctrl._spherical) {
+    const offset = new THREE.Vector3().subVectors(ctx.camera.position, ctx.controls.target)
+    offset.applyQuaternion(ctrl._quat)
+    ctrl._spherical.setFromVector3(offset)
+  }
   onModeChange()
 }
 
@@ -64,10 +72,10 @@ export function isGoreView(ctx: SceneContext): boolean {
   return ctx.goreMesh.visible || ctx.goreMorphMesh.visible
 }
 
+/** ゴア表示の切り替え。平面は常に表示したまま。 */
 export function setGoreView(ctx: SceneContext, show: boolean): void {
   ctx.goreMesh.visible = false
   ctx.goreMesh.position.set(0, U.planePositionY, 0)
-  // 下の平面は常に表示（ゴア表示時も隠さない）
   ctx.plane.visible = true
   ctx.planeGrid.visible = true
   if (show) {
@@ -99,6 +107,12 @@ function setUnwrap(t: TransitionContext): void {
   const objDir = viewDir.clone().applyQuaternion(invQuat)
   const front = UNWRAP_FRONT_DIRECTION.clone()
   sphere.quaternion.setFromUnitVectors(objDir, front)
+  // setFromUnitVectors が上下反転解を選ぶ場合があるので補正
+  const sphereUp = new THREE.Vector3(0, 1, 0).applyQuaternion(sphere.quaternion)
+  if (sphereUp.y < 0) {
+    const flip = new THREE.Quaternion().setFromAxisAngle(front, Math.PI)
+    sphere.quaternion.premultiply(flip)
+  }
   sphere.rotation.setFromQuaternion(sphere.quaternion)
   ctx.plane.position.set(0, U.planePositionY, 0)
   ctx.camera.position.set(0, 0, U.cameraZ)
