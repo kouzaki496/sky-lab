@@ -33,7 +33,7 @@ export function createScene(): SceneContext {
   controls.enableZoom = false
   controls.rotateSpeed = -0.25
   controls.minPolarAngle = 0.001
-  controls.maxPolarAngle = Math.PI / 2
+  controls.maxPolarAngle = Math.PI - 0.001
 
   const texture = new THREE.TextureLoader().load("/panorama.jpg")
   texture.colorSpace = THREE.SRGBColorSpace

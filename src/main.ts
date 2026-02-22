@@ -28,16 +28,18 @@ function updateModeButton(): void {
   const btn = document.getElementById("btn-mode")
   if (btn) {
     if (m === "world") {
-      btn.textContent = "展開"
+      btn.textContent = "Outside"
       btn.setAttribute("aria-label", "展開して球と平面を表示")
     } else {
-      btn.textContent = "360°"
+      btn.textContent = "Inside"
       btn.setAttribute("aria-label", "パノラマで見る")
     }
   }
-  // 360°では展開ボタンのみ表示
   const btnUvLine = document.getElementById("btn-uv-line")
-  if (btnUvLine) btnUvLine.style.display = m === "world" ? "none" : ""
+  if (btnUvLine) {
+    btnUvLine.style.display = m === "world" ? "none" : ""
+    if (m === "unwrap") btnUvLine.setAttribute("aria-pressed", String(getUvLineVisible()))
+  }
   const btnUnfold = document.getElementById("btn-unfold")
   if (btnUnfold) {
     btnUnfold.style.display = m === "unwrap" ? "" : "none"

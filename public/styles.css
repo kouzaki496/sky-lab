@@ -12,7 +12,6 @@ body {
   overflow: hidden;
 }
 
-/* キャンバスを左右中央に配置 */
 canvas {
   display: block;
   width: 100%;
@@ -20,7 +19,7 @@ canvas {
   margin: 0 auto;
 }
 
-/* UI: 画面上部のボタン */
+/* UI: 画面上部のボタン（モード切替・対応線） */
 #mode-buttons {
   position: fixed;
   top: 24px;
@@ -29,7 +28,7 @@ canvas {
   display: flex;
   gap: 12px;
   z-index: 10;
-  pointer-events: none;
+  pointer-events: auto;
 }
 
 #mode-buttons button {
@@ -54,4 +53,56 @@ canvas {
 
 #mode-buttons button:active {
   transform: scale(0.98);
+}
+
+/* UI: 画面右下（2D/3D切替ボタン） */
+.ui-bottom-right {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 10;
+  pointer-events: auto;
+}
+
+/* 右下のアイコンボタン（3D＝立方体アイコン / 360°＝球アイコン） */
+.ui-bottom-right .btn-link {
+  pointer-events: auto;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #333;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  touch-action: manipulation;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ui-bottom-right .btn-link .icon {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.ui-bottom-right .btn-link:hover {
+  background: #fff;
+}
+
+.ui-bottom-right .btn-link:active {
+  transform: scale(0.98);
+}
+
+#mode-buttons button[aria-pressed="true"] {
+  background: #5c6bc0;
+  color: #fff;
+}
+
+#mode-buttons button[aria-pressed="true"]:hover {
+  background: #7986cb;
 }
