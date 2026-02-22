@@ -106,3 +106,73 @@ canvas {
 #mode-buttons button[aria-pressed="true"]:hover {
   background: #7986cb;
 }
+
+/* 3Dデモ: 矢印パッド＋リセット */
+.demo3d-controls {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  z-index: 10;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.arrow-pad {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: 1fr 1fr 1fr 1fr 1fr;
+  gap: 4px;
+  width: 96px;
+  height: 152px;
+}
+
+#demo3d-reset-wrap {
+  flex-shrink: 0;
+}
+
+.demo3d-reset-btn {
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
+}
+
+.demo3d-reset-btn svg {
+  width: 24px;
+  height: 24px;
+}
+
+.arrow-pad-btn {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #333;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  touch-action: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.arrow-pad-btn svg {
+  width: 28px;
+  height: 28px;
+}
+
+.arrow-pad-btn:hover {
+  background: #fff;
+}
+
+.arrow-pad-btn:active {
+  transform: scale(0.95);
+  background: #e8e8e8;
+}
