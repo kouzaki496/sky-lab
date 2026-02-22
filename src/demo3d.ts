@@ -1,26 +1,59 @@
 import * as THREE from "three"
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js"
+import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js"
+import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js"
+import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js"
 import {
   createDemo3DScene,
   DEMO3D_CAMERA_POSITION,
-  DEMO3D_TARGET
+  DEMO3D_TARGET,
+  DEMO3D_BOUNDS,
+  DEMO3D_SPACE_BACKGROUND
 } from "./scene/demo3D"
 
 const scene = new THREE.Scene()
-scene.background = new THREE.Color(0xffffff)
+scene.background = DEMO3D_SPACE_BACKGROUND.clone()
 
+// FOV をやや狭くして、球がカメラ位置で楕円に見えにくくする（広角だと端で歪む）
 const camera = new THREE.PerspectiveCamera(
-  75,
-  window.innerWidth / window.innerHeight,
+  50,
+  1,
   0.1,
   1000
 )
 camera.position.copy(DEMO3D_CAMERA_POSITION)
 camera.lookAt(DEMO3D_TARGET)
 
-const renderer = new THREE.WebGLRenderer({ antialias: true })
-renderer.setSize(window.innerWidth, window.innerHeight)
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false })
 document.body.appendChild(renderer.domElement)
+
+const composer = new EffectComposer(renderer)
+composer.addPass(new RenderPass(scene, camera))
+const bloomPass = new UnrealBloomPass(
+  new THREE.Vector2(window.innerWidth, window.innerHeight),
+  0.9,
+  0.4,
+  0.35
+)
+composer.addPass(bloomPass)
+
+function setSizeFromCanvas(): void {
+  const canvas = renderer.domElement
+  let w = canvas.clientWidth
+  let h = canvas.clientHeight
+  if (w === 0 || h === 0) {
+    w = window.innerWidth
+    h = window.innerHeight
+  }
+  if (w === 0 || h === 0) return
+  camera.aspect = w / h
+  camera.updateProjectionMatrix()
+  renderer.setSize(w, h)
+  composer.setSize(w, h)
+  composer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+  bloomPass.resolution.set(w, h)
+}
+setSizeFromCanvas()
 
 const controls = new OrbitControls(camera, renderer.domElement)
 controls.target.copy(DEMO3D_TARGET)
@@ -32,7 +65,15 @@ controls.maxPolarAngle = Math.PI - 0.001
 
 const demoScene = createDemo3DScene()
 scene.add(demoScene)
-scene.add(new THREE.AmbientLight(0xffffff, 1.0))
+
+// 照明: 立体感が出るように指向性ライト＋環境光
+scene.add(new THREE.AmbientLight(0x4466aa, 0.25))
+const mainLight = new THREE.DirectionalLight(0xffffff, 0.95)
+mainLight.position.set(15, 25, 20)
+scene.add(mainLight)
+const fillLight = new THREE.DirectionalLight(0x6688cc, 0.2)
+fillLight.position.set(-10, 5, -15)
+scene.add(fillLight)
 
 // --- 矢印ボタンで視点移動（上下左右＋奥・手前） ---
 const PAN_SPEED = 0.08
@@ -146,6 +187,18 @@ function updatePan(): void {
     camera.position.addScaledVector(_dir, -PAN_SPEED)
     controls.target.addScaledVector(_dir, -PAN_SPEED)
   }
+  clampToBounds()
+}
+
+/** カメラとターゲットを DEMO3D_BOUNDS 内に収める */
+function clampToBounds(): void {
+  const { min, max } = DEMO3D_BOUNDS
+  camera.position.x = THREE.MathUtils.clamp(camera.position.x, min.x, max.x)
+  camera.position.y = THREE.MathUtils.clamp(camera.position.y, min.y, max.y)
+  camera.position.z = THREE.MathUtils.clamp(camera.position.z, min.z, max.z)
+  controls.target.x = THREE.MathUtils.clamp(controls.target.x, min.x, max.x)
+  controls.target.y = THREE.MathUtils.clamp(controls.target.y, min.y, max.y)
+  controls.target.z = THREE.MathUtils.clamp(controls.target.z, min.z, max.z)
 }
 
 setupArrowPad()
@@ -173,15 +226,12 @@ function animate(): void {
   requestAnimationFrame(animate)
   updatePan()
   controls.update()
-  renderer.render(scene, camera)
+  clampToBounds()
+  composer.render()
 }
 
 window.addEventListener("resize", () => {
-  const w = window.innerWidth
-  const h = window.innerHeight
-  camera.aspect = w / h
-  camera.updateProjectionMatrix()
-  renderer.setSize(w, h)
+  setSizeFromCanvas()
 })
 
 animate()
