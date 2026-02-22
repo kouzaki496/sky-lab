@@ -14,17 +14,13 @@ import {
 const scene = new THREE.Scene()
 scene.background = DEMO3D_SPACE_BACKGROUND.clone()
 
-// FOV をやや狭くして、球がカメラ位置で楕円に見えにくくする（広角だと端で歪む）
-const camera = new THREE.PerspectiveCamera(
-  50,
-  1,
-  0.1,
-  1000
-)
+const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 1000)
 camera.position.copy(DEMO3D_CAMERA_POSITION)
 camera.lookAt(DEMO3D_TARGET)
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false })
+renderer.shadowMap.enabled = true
+renderer.shadowMap.type = THREE.PCFSoftShadowMap
 document.body.appendChild(renderer.domElement)
 
 const composer = new EffectComposer(renderer)
@@ -66,16 +62,19 @@ controls.maxPolarAngle = Math.PI - 0.001
 const demoScene = createDemo3DScene()
 scene.add(demoScene)
 
-// 照明: 立体感が出るように指向性ライト＋環境光
-scene.add(new THREE.AmbientLight(0x4466aa, 0.25))
-const mainLight = new THREE.DirectionalLight(0xffffff, 0.95)
-mainLight.position.set(15, 25, 20)
-scene.add(mainLight)
-const fillLight = new THREE.DirectionalLight(0x6688cc, 0.2)
-fillLight.position.set(-10, 5, -15)
+const SUN_POSITION = new THREE.Vector3(0, 0, 0)
+const sunLight = new THREE.DirectionalLight(0xfff5e6, 1.0)
+sunLight.position.copy(SUN_POSITION)
+sunLight.target.position.set(40, 0, 0)
+scene.add(sunLight)
+scene.add(sunLight.target)
+scene.add(new THREE.AmbientLight(0x445577, 0.35))
+const fillLight = new THREE.DirectionalLight(0x6688aa, 0.2)
+fillLight.position.set(20, 5, -10)
+fillLight.target.position.set(0, 0, 0)
 scene.add(fillLight)
+scene.add(fillLight.target)
 
-// --- 矢印ボタンで視点移動（上下左右＋奥・手前） ---
 const PAN_SPEED = 0.08
 const activePan = {
   up: false,
@@ -94,13 +93,11 @@ type PanDir = "up" | "down" | "left" | "right" | "forward" | "back"
 function setupArrowPad(): void {
   const pad = document.getElementById("arrow-pad")
   if (!pad) return
-
   const arrows: Record<PanDir, string> = {
     up: "M12 19V5m0 0l-6 6m6-6l6 6",
     down: "M12 5v14m0 0l6-6m-6 6l-6-6",
     left: "M5 12h14m0 0l-6-6m6 6l-6 6",
     right: "M19 12H5m0 0l6-6m-6 6l6-6",
-    // 奥＝視点方向へ（丸＋上矢印）、手前＝手前へ（丸＋下矢印）
     forward: "M12 20a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M12 14V7l3 3",
     back: "M12 4a3 3 0 1 0 0 6 3 3 0 0 0 0-6z M12 10v7l3-3"
   }
@@ -112,8 +109,6 @@ function setupArrowPad(): void {
     forward: "奥へ移動",
     back: "手前へ移動"
   }
-
-  // レイアウト: 1行目=奥, 2=上, 3=左・右, 4=下, 5=手前
   const layout: { dir: PanDir; gridColumn: number; gridRow: number }[] = [
     { dir: "forward", gridColumn: 2, gridRow: 1 },
     { dir: "up", gridColumn: 2, gridRow: 2 },
@@ -158,11 +153,9 @@ function updatePan(): void {
     activePan.forward ||
     activePan.back
   if (!any) return
-
   _dir.subVectors(controls.target, camera.position).normalize()
   _right.crossVectors(_dir, new THREE.Vector3(0, 1, 0)).normalize()
   _up.crossVectors(_right, _dir).normalize()
-
   if (activePan.right) {
     camera.position.addScaledVector(_right, PAN_SPEED)
     controls.target.addScaledVector(_right, PAN_SPEED)
@@ -190,7 +183,6 @@ function updatePan(): void {
   clampToBounds()
 }
 
-/** カメラとターゲットを DEMO3D_BOUNDS 内に収める */
 function clampToBounds(): void {
   const { min, max } = DEMO3D_BOUNDS
   camera.position.x = THREE.MathUtils.clamp(camera.position.x, min.x, max.x)
@@ -202,7 +194,6 @@ function clampToBounds(): void {
 }
 
 setupArrowPad()
-setupResetButton()
 
 function resetCamera(): void {
   camera.position.copy(DEMO3D_CAMERA_POSITION)
@@ -221,6 +212,7 @@ function setupResetButton(): void {
   btn.addEventListener("click", resetCamera)
   wrap.appendChild(btn)
 }
+setupResetButton()
 
 function animate(): void {
   requestAnimationFrame(animate)
