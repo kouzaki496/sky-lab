@@ -45,6 +45,15 @@ export function createScene(): SceneContext {
   sphere.rotation.y = SPHERE_GRID_ROTATION_Y
   scene.add(sphere)
 
+  const sphereOuterMaterial = new THREE.MeshBasicMaterial({
+    map: texture,
+    side: THREE.FrontSide,
+    transparent: true,
+    opacity: 0.28
+  })
+  const sphereOuter = new THREE.Mesh(sphereGeometry, sphereOuterMaterial)
+  sphere.add(sphereOuter)
+
   const sphereWireframe = createSphereGridFromGeometry(sphereGeometry, SPHERE_GRID_LONGITUDE, SPHERE_GRID_LATITUDE)
   sphereWireframe.visible = false
   sphere.add(sphereWireframe)

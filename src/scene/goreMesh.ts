@@ -127,13 +127,14 @@ export function createSphereToGoreMorphMesh(
       uvs.push(g / numGores, 1 - v, (g + 1) / numGores, 1 - v)
     }
   }
+  // 球の「内側」が正面になるよう巻き順を反転（本球は BackSide で内側表示のため、ゴアも内側に見せる）
   for (let g = 0; g < numGores; g++) {
     for (let j = 0; j < latSteps; j++) {
       const a = (g * (latSteps + 1) + j) * 2
       const b = a + 1
       const c = a + 2
       const d = a + 3
-      indices.push(a, c, b, b, c, d)
+      indices.push(a, b, c, b, d, c)
     }
   }
 
@@ -156,6 +157,7 @@ export function createSphereToGoreMorphMesh(
     geo.getAttribute("morphTarget2") as THREE.BufferAttribute
   ]
   geo.computeVertexNormals()
+  // DoubleSide: 球は内側・平面は表のどちらからでも見える（同一インデックスで球は内側・平面は裏が正面になるため）
   const mat = new THREE.MeshBasicMaterial({
     map: texture.clone(),
     side: THREE.DoubleSide
