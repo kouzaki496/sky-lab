@@ -9,7 +9,7 @@ import {
   DEMO3D_TARGET,
   DEMO3D_BOUNDS,
   DEMO3D_SPACE_BACKGROUND
-} from "./scene/demo3D"
+} from "./scene/demo3d-scene"
 
 const scene = new THREE.Scene()
 scene.background = DEMO3D_SPACE_BACKGROUND.clone()
