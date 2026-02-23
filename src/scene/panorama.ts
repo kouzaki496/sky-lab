@@ -34,7 +34,7 @@ export function createScene(): SceneContext {
   controls.minPolarAngle = 0.001
   controls.maxPolarAngle = Math.PI - 0.001
 
-  const texture = new THREE.TextureLoader().load("/panorama.jpg")
+  const texture = new THREE.TextureLoader().load(import.meta.env.BASE_URL + "panorama.jpg")
   texture.colorSpace = THREE.SRGBColorSpace
 
   // 球体

@@ -134,7 +134,7 @@ function setupArrowPad(): void {
     btn.style.gridColumn = String(gridColumn)
     btn.style.gridRow = String(gridRow)
     const img = document.createElement("img")
-    img.src = dir === "forward" || dir === "back" ? "/icon_arrow2.png" : "/icon_arrow.png"
+    img.src = dir === "forward" || dir === "back" ? import.meta.env.BASE_URL + "icon_arrow2.png" : import.meta.env.BASE_URL + "icon_arrow.png"
     img.alt = ""
     img.style.transform = `rotate(${ARROW_ROTATE[dir]}deg)`
     btn.appendChild(img)
@@ -164,7 +164,7 @@ function setupArrowPad(): void {
   resetBtn.style.gridColumn = "2"
   resetBtn.style.gridRow = "2"
   const resetImg = document.createElement("img")
-  resetImg.src = "/icon_reload.png"
+  resetImg.src = import.meta.env.BASE_URL + "icon_reload.png"
   resetImg.alt = ""
   resetBtn.appendChild(resetImg)
   resetBtn.addEventListener("click", resetCamera)

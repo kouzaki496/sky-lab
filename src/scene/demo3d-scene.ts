@@ -19,15 +19,16 @@ const PLANETS = [
   { name: "Neptune", radius: 0.36, distance: 34, offsetY: 0, offsetZ: 0 }
 ]
 
+const BASE = import.meta.env.BASE_URL
 const PLANET_TEXTURE_PATHS: Record<string, string> = {
-  Mercury: "/mercury.jpg",
-  Venus: "/venus.jpg",
-  Earth: "/earth.jpg",
-  Mars: "/mars.jpg",
-  Jupiter: "/jupiter.jpg",
-  Saturn: "/saturn.jpg",
-  Uranus: "/uranus.jpg",
-  Neptune: "/neptune.png"
+  Mercury: BASE + "mercury.jpg",
+  Venus: BASE + "venus.jpg",
+  Earth: BASE + "earth.jpg",
+  Mars: BASE + "mars.jpg",
+  Jupiter: BASE + "jupiter.jpg",
+  Saturn: BASE + "saturn.jpg",
+  Uranus: BASE + "uranus.jpg",
+  Neptune: BASE + "neptune.png"
 }
 
 /** 輪がある惑星の輪パラメータ（内径・外径は惑星半径比。inner > 1 で惑星と輪の間に隙間） */
