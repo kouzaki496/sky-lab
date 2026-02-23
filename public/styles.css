@@ -1,0 +1,184 @@
+/* ベース: レイアウト・リセット */
+:root {
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+}
+
+html,
+body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  margin: 0 auto;
+}
+
+/* UI: 画面上部のボタン（モード切替・対応線） */
+#mode-buttons {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 12px;
+  z-index: 10;
+  pointer-events: auto;
+}
+
+#mode-buttons button {
+  pointer-events: auto;
+  min-width: 120px;
+  min-height: 48px;
+  padding: 12px 20px;
+  font-size: 1rem;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #333;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#mode-buttons button:hover {
+  background: #fff;
+}
+
+#mode-buttons button:active {
+  transform: scale(0.98);
+}
+
+/* UI: 画面右下（2D/3D切替ボタン） */
+.ui-bottom-right {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 10;
+  pointer-events: auto;
+}
+
+/* 右下のアイコンボタン（3D＝立方体アイコン / 360°＝球アイコン） */
+.ui-bottom-right .btn-link {
+  pointer-events: auto;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #333;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  touch-action: manipulation;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ui-bottom-right .btn-link .icon {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.ui-bottom-right .btn-link:hover {
+  background: #fff;
+}
+
+.ui-bottom-right .btn-link:active {
+  transform: scale(0.98);
+}
+
+#mode-buttons button[aria-pressed="true"] {
+  background: #5c6bc0;
+  color: #fff;
+}
+
+#mode-buttons button[aria-pressed="true"]:hover {
+  background: #7986cb;
+}
+
+/* 3Dデモ: 矢印パッド＋リセット */
+.demo3d-controls {
+  position: fixed;
+  bottom: 48px;
+  left: 24px;
+  z-index: 10;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.arrow-pad {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: 1fr 1fr 1fr;
+  gap: 6px;
+  width: 114px;
+  height: 114px;
+}
+
+.demo3d-reset-btn {
+  width: 48px;
+  height: 48px;
+}
+
+.demo3d-reset-btn svg,
+.demo3d-reset-btn img {
+  width: 28px;
+  height: 28px;
+  display: block;
+}
+
+.arrow-pad-btn {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #333;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  touch-action: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.arrow-pad-btn svg,
+.arrow-pad-btn img {
+  width: 32px;
+  height: 32px;
+  display: block;
+}
+
+.arrow-pad-btn--forward img {
+  filter: brightness(0) saturate(100%) invert(27%) sepia(95%) saturate(2500%) hue-rotate(350deg);
+}
+
+.arrow-pad-btn--back img {
+  filter: brightness(0) saturate(100%) invert(35%) sepia(95%) saturate(2000%) hue-rotate(200deg);
+}
+
+.arrow-pad-btn:hover {
+  background: #fff;
+}
+
+.arrow-pad-btn:active {
+  transform: scale(0.95);
+  background: #e8e8e8;
+}

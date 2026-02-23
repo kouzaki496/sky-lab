@@ -5,9 +5,23 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>sky-lab</title>
+    <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <div id="app"></div>
+    <div id="mode-buttons">
+      <button type="button" id="btn-mode" aria-label="モード切替"></button>
+      <button type="button" id="btn-uv-line" aria-label="球と地図の対応線の表示切替" style="display: none">球と平面の対応線</button>
+      <!-- <button type="button" id="btn-unfold" aria-label="経線に沿って展開するアニメーション" style="display: none">経線で展開</button> -->
+    </div>
+    <div class="ui-bottom-right">
+      <a href="/demo3d.html" class="btn-link btn-icon" aria-label="3Dデモ">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 6L20 10 12 14 4 10z"/>
+          <path d="M12 14v8l8-4v-8"/>
+          <path d="M12 14v8l-8-4v-8"/>
+        </svg>
+      </a>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
