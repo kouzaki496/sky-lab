@@ -110,7 +110,7 @@ canvas {
 /* 3Dデモ: 矢印パッド＋リセット */
 .demo3d-controls {
   position: fixed;
-  bottom: 24px;
+  bottom: 48px;
   left: 24px;
   z-index: 10;
   pointer-events: auto;
@@ -123,26 +123,22 @@ canvas {
 .arrow-pad {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  grid-template-rows: 1fr 1fr 1fr 1fr 1fr;
-  gap: 4px;
-  width: 96px;
-  height: 152px;
-}
-
-#demo3d-reset-wrap {
-  flex-shrink: 0;
+  grid-template-rows: 1fr 1fr 1fr;
+  gap: 6px;
+  width: 114px;
+  height: 114px;
 }
 
 .demo3d-reset-btn {
   width: 48px;
   height: 48px;
-  min-width: 48px;
-  min-height: 48px;
 }
 
-.demo3d-reset-btn svg {
-  width: 24px;
-  height: 24px;
+.demo3d-reset-btn svg,
+.demo3d-reset-btn img {
+  width: 28px;
+  height: 28px;
+  display: block;
 }
 
 .arrow-pad-btn {
@@ -163,9 +159,19 @@ canvas {
   user-select: none;
 }
 
-.arrow-pad-btn svg {
-  width: 28px;
-  height: 28px;
+.arrow-pad-btn svg,
+.arrow-pad-btn img {
+  width: 32px;
+  height: 32px;
+  display: block;
+}
+
+.arrow-pad-btn--forward img {
+  filter: brightness(0) saturate(100%) invert(27%) sepia(95%) saturate(2500%) hue-rotate(350deg);
+}
+
+.arrow-pad-btn--back img {
+  filter: brightness(0) saturate(100%) invert(35%) sepia(95%) saturate(2000%) hue-rotate(200deg);
 }
 
 .arrow-pad-btn:hover {

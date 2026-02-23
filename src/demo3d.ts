@@ -55,7 +55,11 @@ const controls = new OrbitControls(camera, renderer.domElement)
 controls.target.copy(DEMO3D_TARGET)
 controls.enablePan = true
 controls.enableZoom = true
-controls.rotateSpeed = -0.25
+controls.rotateSpeed = -0.55
+controls.panSpeed = 0.8
+controls.zoomSpeed = 1.4
+controls.enableDamping = true
+controls.dampingFactor = 0.08
 controls.minPolarAngle = 0.001
 controls.maxPolarAngle = Math.PI - 0.001
 
@@ -75,7 +79,9 @@ fillLight.target.position.set(0, 0, 0)
 scene.add(fillLight)
 scene.add(fillLight.target)
 
-const PAN_SPEED = 0.08
+const PAN_ACCEL = 0.018
+const PAN_DAMPING = 0.92
+const PAN_MAX_SPEED = 0.35
 const activePan = {
   up: false,
   down: false,
@@ -84,23 +90,25 @@ const activePan = {
   forward: false,
   back: false
 }
+const panVelocity = new THREE.Vector3(0, 0, 0)
 const _dir = new THREE.Vector3()
 const _right = new THREE.Vector3()
 const _up = new THREE.Vector3()
 
 type PanDir = "up" | "down" | "left" | "right" | "forward" | "back"
 
+const ARROW_ROTATE: Record<PanDir, number> = {
+  up: 0,
+  down: 180,
+  left: -90,
+  right: 90,
+  forward: 90,
+  back: -90
+}
+
 function setupArrowPad(): void {
   const pad = document.getElementById("arrow-pad")
   if (!pad) return
-  const arrows: Record<PanDir, string> = {
-    up: "M12 19V5m0 0l-6 6m6-6l6 6",
-    down: "M12 5v14m0 0l6-6m-6 6l-6-6",
-    left: "M5 12h14m0 0l-6-6m6 6l-6 6",
-    right: "M19 12H5m0 0l6-6m-6 6l6-6",
-    forward: "M12 20a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M12 14V7l3 3",
-    back: "M12 4a3 3 0 1 0 0 6 3 3 0 0 0 0-6z M12 10v7l3-3"
-  }
   const labels: Record<PanDir, string> = {
     up: "上へ移動",
     down: "下へ移動",
@@ -109,22 +117,27 @@ function setupArrowPad(): void {
     forward: "奥へ移動",
     back: "手前へ移動"
   }
+  // 配置: 空 上 前 / 左 リセット 右 / 後 下 空（3x3）
   const layout: { dir: PanDir; gridColumn: number; gridRow: number }[] = [
-    { dir: "forward", gridColumn: 2, gridRow: 1 },
-    { dir: "up", gridColumn: 2, gridRow: 2 },
-    { dir: "left", gridColumn: 1, gridRow: 3 },
-    { dir: "right", gridColumn: 3, gridRow: 3 },
-    { dir: "down", gridColumn: 2, gridRow: 4 },
-    { dir: "back", gridColumn: 2, gridRow: 5 }
+    { dir: "up", gridColumn: 2, gridRow: 1 },
+    { dir: "forward", gridColumn: 3, gridRow: 1 },
+    { dir: "left", gridColumn: 1, gridRow: 2 },
+    { dir: "right", gridColumn: 3, gridRow: 2 },
+    { dir: "back", gridColumn: 1, gridRow: 3 },
+    { dir: "down", gridColumn: 2, gridRow: 3 }
   ]
   layout.forEach(({ dir, gridColumn, gridRow }) => {
     const btn = document.createElement("button")
     btn.type = "button"
-    btn.className = "arrow-pad-btn"
+    btn.className = `arrow-pad-btn arrow-pad-btn--${dir}`
     btn.setAttribute("aria-label", labels[dir])
     btn.style.gridColumn = String(gridColumn)
     btn.style.gridRow = String(gridRow)
-    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${arrows[dir]}"/></svg>`
+    const img = document.createElement("img")
+    img.src = dir === "forward" || dir === "back" ? "/icon_arrow2.png" : "/icon_arrow.png"
+    img.alt = ""
+    img.style.transform = `rotate(${ARROW_ROTATE[dir]}deg)`
+    btn.appendChild(img)
     const setActive = (v: boolean) => {
       activePan[dir] = v
     }
@@ -142,44 +155,38 @@ function setupArrowPad(): void {
     btn.addEventListener("contextmenu", (e) => e.preventDefault())
     pad.appendChild(btn)
   })
+
+  // 中央にリセットボタン
+  const resetBtn = document.createElement("button")
+  resetBtn.type = "button"
+  resetBtn.className = "arrow-pad-btn demo3d-reset-btn"
+  resetBtn.setAttribute("aria-label", "視点をリセット")
+  resetBtn.style.gridColumn = "2"
+  resetBtn.style.gridRow = "2"
+  const resetImg = document.createElement("img")
+  resetImg.src = "/icon_reload.png"
+  resetImg.alt = ""
+  resetBtn.appendChild(resetImg)
+  resetBtn.addEventListener("click", resetCamera)
+  pad.appendChild(resetBtn)
 }
 
 function updatePan(): void {
-  const any =
-    activePan.up ||
-    activePan.down ||
-    activePan.left ||
-    activePan.right ||
-    activePan.forward ||
-    activePan.back
-  if (!any) return
   _dir.subVectors(controls.target, camera.position).normalize()
   _right.crossVectors(_dir, new THREE.Vector3(0, 1, 0)).normalize()
   _up.crossVectors(_right, _dir).normalize()
-  if (activePan.right) {
-    camera.position.addScaledVector(_right, PAN_SPEED)
-    controls.target.addScaledVector(_right, PAN_SPEED)
+  if (activePan.right) panVelocity.addScaledVector(_right, PAN_ACCEL)
+  if (activePan.left) panVelocity.addScaledVector(_right, -PAN_ACCEL)
+  if (activePan.up) panVelocity.addScaledVector(_up, PAN_ACCEL)
+  if (activePan.down) panVelocity.addScaledVector(_up, -PAN_ACCEL)
+  if (activePan.forward) panVelocity.addScaledVector(_dir, PAN_ACCEL)
+  if (activePan.back) panVelocity.addScaledVector(_dir, -PAN_ACCEL)
+  panVelocity.multiplyScalar(PAN_DAMPING)
+  if (panVelocity.lengthSq() > PAN_MAX_SPEED * PAN_MAX_SPEED) {
+    panVelocity.normalize().multiplyScalar(PAN_MAX_SPEED)
   }
-  if (activePan.left) {
-    camera.position.addScaledVector(_right, -PAN_SPEED)
-    controls.target.addScaledVector(_right, -PAN_SPEED)
-  }
-  if (activePan.up) {
-    camera.position.addScaledVector(_up, PAN_SPEED)
-    controls.target.addScaledVector(_up, PAN_SPEED)
-  }
-  if (activePan.down) {
-    camera.position.addScaledVector(_up, -PAN_SPEED)
-    controls.target.addScaledVector(_up, -PAN_SPEED)
-  }
-  if (activePan.forward) {
-    camera.position.addScaledVector(_dir, PAN_SPEED)
-    controls.target.addScaledVector(_dir, PAN_SPEED)
-  }
-  if (activePan.back) {
-    camera.position.addScaledVector(_dir, -PAN_SPEED)
-    controls.target.addScaledVector(_dir, -PAN_SPEED)
-  }
+  camera.position.add(panVelocity)
+  controls.target.add(panVelocity)
   clampToBounds()
 }
 
@@ -201,18 +208,6 @@ function resetCamera(): void {
   camera.lookAt(DEMO3D_TARGET)
 }
 
-function setupResetButton(): void {
-  const wrap = document.getElementById("demo3d-reset-wrap")
-  if (!wrap) return
-  const btn = document.createElement("button")
-  btn.type = "button"
-  btn.className = "arrow-pad-btn demo3d-reset-btn"
-  btn.setAttribute("aria-label", "視点をリセット")
-  btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>`
-  btn.addEventListener("click", resetCamera)
-  wrap.appendChild(btn)
-}
-setupResetButton()
 
 function animate(): void {
   requestAnimationFrame(animate)

@@ -32,6 +32,8 @@ export function createScene(): SceneContext {
   const controls = new OrbitControls(camera, renderer.domElement)
   controls.enableZoom = false
   controls.rotateSpeed = -0.25
+  controls.enableDamping = true
+  controls.dampingFactor = 0.08
   controls.minPolarAngle = 0.001
   controls.maxPolarAngle = Math.PI - 0.001
 

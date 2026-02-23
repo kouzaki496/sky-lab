@@ -96,6 +96,11 @@ let lastPointerClientY = 0
 let prevPointerX = 0
 let prevPointerY = 0
 const ROTATE_SPEED = 0.005
+const SPHERE_INERTIA_DAMPING = 0.92
+const SPHERE_INERTIA_MIN = 1e-5
+
+let sphereVelocityY = 0
+let sphereVelocityTilt = 0
 
 const _sphereRight = new THREE.Vector3()
 const _sphereUp = new THREE.Vector3()
@@ -103,7 +108,21 @@ const _quatY = new THREE.Quaternion()
 const _quatTilt = new THREE.Quaternion()
 const _quatTiltInv = new THREE.Quaternion()
 
-// --- 展開モード: 球ドラッグはクォータニオンで回転（上下反転防止） ---
+function applySphereRotation(dy: number, dtilt: number): void {
+  _quatY.setFromAxisAngle(new THREE.Vector3(0, 1, 0), dy)
+  sphere.quaternion.premultiply(_quatY)
+  _sphereRight.set(1, 0, 0).applyQuaternion(sphere.quaternion)
+  _quatTilt.setFromAxisAngle(_sphereRight, dtilt)
+  sphere.quaternion.premultiply(_quatTilt)
+  _sphereUp.set(0, 1, 0).applyQuaternion(sphere.quaternion)
+  if (_sphereUp.y < 0) {
+    _quatTiltInv.copy(_quatTilt).invert()
+    sphere.quaternion.premultiply(_quatTiltInv)
+  }
+  sphere.quaternion.normalize()
+}
+
+// --- 展開モード: 球ドラッグはクォータニオンで回転（上下反転防止）+ 慣性 ---
 canvas.addEventListener("pointerdown", (e) => {
   if (getMode() !== "unwrap" || isTransitioning()) return
   uvMarker.setMouseFromEvent(e)
@@ -125,17 +144,9 @@ canvas.addEventListener("pointermove", (e) => {
   } else if (sphereDrag) {
     const dx = (e.clientX - prevPointerX) * ROTATE_SPEED
     const dy = -(e.clientY - prevPointerY) * ROTATE_SPEED
-    _quatY.setFromAxisAngle(new THREE.Vector3(0, 1, 0), dx)
-    sphere.quaternion.premultiply(_quatY)
-    _sphereRight.set(1, 0, 0).applyQuaternion(sphere.quaternion)
-    _quatTilt.setFromAxisAngle(_sphereRight, dy)
-    sphere.quaternion.premultiply(_quatTilt)
-    _sphereUp.set(0, 1, 0).applyQuaternion(sphere.quaternion)
-    if (_sphereUp.y < 0) {
-      _quatTiltInv.copy(_quatTilt).invert()
-      sphere.quaternion.premultiply(_quatTiltInv)
-    }
-    sphere.quaternion.normalize()
+    sphereVelocityY = dx
+    sphereVelocityTilt = dy
+    applySphereRotation(dx, dy)
     prevPointerX = e.clientX
     prevPointerY = e.clientY
   }
@@ -159,6 +170,15 @@ function animate(): void {
   )
   if (controls.enabled) controls.update()
   clampCameraInSphere()
+  if (getMode() === "unwrap" && !sphereDrag && !uvPointDrag) {
+    const sy = Math.abs(sphereVelocityY)
+    const st = Math.abs(sphereVelocityTilt)
+    if (sy > SPHERE_INERTIA_MIN || st > SPHERE_INERTIA_MIN) {
+      applySphereRotation(sphereVelocityY, sphereVelocityTilt)
+      sphereVelocityY *= SPHERE_INERTIA_DAMPING
+      sphereVelocityTilt *= SPHERE_INERTIA_DAMPING
+    }
+  }
   renderer.render(scene, camera)
 }
 
